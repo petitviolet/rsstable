@@ -8,7 +8,10 @@ pub trait Memtable {
     fn delete(&mut self, key: Self::Key) -> ();
     fn flush(
         &mut self,
-    ) -> (Box<dyn Iterator<Item = (&'static Self::Key, &'static Self::Value)>>, Box<dyn Iterator<Item = &'static Self::Key>>);
+    ) -> (
+        Box<BTreeMap<Self::Key, Self::Value>>,
+        Box<BTreeSet<Self::Key>>,
+    );
 }
 
 pub mod default {
@@ -18,12 +21,12 @@ pub mod default {
         hash::Hash,
     };
 
-    struct HashMemtable<K, V> {
+    pub struct HashMemtable<K, V> {
         underlying: BTreeMap<K, V>,
         tombstone: BTreeSet<K>,
     }
     impl<K: Hash + Eq + Ord, V> HashMemtable<K, V> {
-        pub fn new() -> impl Memtable<Key = String, Value = String> {
+        pub fn new() -> impl Memtable<Key = K, Value = V> {
             HashMemtable {
                 underlying: BTreeMap::new(),
                 tombstone: BTreeSet::new(),
@@ -61,16 +64,23 @@ pub mod default {
         }
 
         fn delete(&mut self, key: Self::Key) -> () {
-            self.tombstone.insert(key);
             self.underlying.remove(&key);
+            self.tombstone.insert(key);
         }
 
         fn flush(
             &mut self,
-        ) -> (Box<dyn Iterator<Item = (&'static Self::Key, &'static Self::Value)>>, Box<dyn Iterator<Item = &'static Self::Key>>) {
-          let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
-          let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
-          (Box::new(contents.iter()), Box::new(deleted.iter()))
+        ) -> (
+            Box<BTreeMap<Self::Key, Self::Value>>,
+            Box<BTreeSet<Self::Key>>,
+        ) {
+            // let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
+            // let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
+            // (Box::new(contents.iter()), Box::new(deleted.iter()))
+            (
+                Box::new(std::mem::replace(&mut self.underlying, BTreeMap::new())),
+                Box::new(std::mem::replace(&mut self.tombstone, BTreeSet::new())),
+            )
         }
     }
 }
