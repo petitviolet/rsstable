@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 pub trait Disktable {
     fn find(&self, key: &String) -> Option<String>;
@@ -17,7 +17,7 @@ pub mod default {
     use super::{DataLayout, Disktable, DisktableFetch};
     use io::{BufRead, Read};
     use std::{
-        collections::{BTreeMap, HashMap, HashSet, BTreeSet},
+        collections::{BTreeMap, BTreeSet, HashMap, HashSet},
         fs::File,
         io::{self, Seek, SeekFrom},
         path::Path,
@@ -36,10 +36,7 @@ pub mod default {
         pub fn new(dir_name: String) -> Result<impl Disktable, io::Error> {
             let index = Self::load_index(&dir_name)?;
 
-            Ok(Self {
-                dir_name,
-                index,
-            })
+            Ok(Self { dir_name, index })
         }
         fn prepare_file(path: &Path) -> Result<File, io::Error> {
             File::open(path).or_else(|err| File::create(path))
@@ -52,7 +49,7 @@ pub mod default {
 
         fn load_index(dir_name: &String) -> Result<BTreeMap<String, u64>, io::Error> {
             let dir = Path::new(dir_name);
-            let index_dir =dir.join(Self::IndexFileName);
+            let index_dir = dir.join(Self::IndexFileName);
             let index_path = index_dir.as_path();
             Self::prepare_file(index_path)
                 .map(|file| io::BufReader::new(file).lines())
@@ -80,7 +77,7 @@ pub mod default {
 
     impl DisktableFetch for FileDisktable {
         fn fetch(&self, offset: u64) -> Option<(DataLayout, String, String)> {
-          let mut data = Self::data_file(&self.dir_name).unwrap();
+            let mut data = Self::data_file(&self.dir_name).unwrap();
             data.seek(SeekFrom::Start(offset)).unwrap();
             let mut key_len: [u8; 4] = [0; 4];
             let res = data.read_exact(&mut key_len);
