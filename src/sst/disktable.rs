@@ -1,8 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 
 pub trait Disktable {
-    fn find(&self, key: String) -> Option<String>;
-    fn flush(&mut self, tombstones: HashSet<String>, entries: HashMap<String, String>);
+    fn find(&self, key: &String) -> Option<String>;
+    fn flush(&mut self, entries: &BTreeMap<String, String>, tombstones: &BTreeSet<String>);
 }
 struct DataLayout {
     pub offset: u64,
@@ -17,10 +17,9 @@ pub mod default {
     use super::{DataLayout, Disktable, DisktableFetch};
     use io::{BufRead, Read};
     use std::{
-        collections::{BTreeMap, HashMap, HashSet},
+        collections::{BTreeMap, HashMap, HashSet, BTreeSet},
         fs::File,
         io::{self, Seek, SeekFrom},
-        ops::Deref,
         path::Path,
     };
 
@@ -136,16 +135,16 @@ pub mod default {
     }
 
     impl Disktable for FileDisktable {
-        fn find(&self, key: String) -> Option<String> {
+        fn find(&self, key: &String) -> Option<String> {
             self.index
-                .get(&key)
+                .get(key)
                 .and_then(|offset| match self.fetch(*offset) {
-                    Some((_, _key, _value)) if _key == key => Some(_value),
+                    Some((_, _key, _value)) if _key == *key => Some(_value),
                     _ => None,
                 })
         }
 
-        fn flush(&mut self, tombstones: HashSet<String>, entries: HashMap<String, String>) {
+        fn flush(&mut self, entries: &BTreeMap<String, String>, tombstones: &BTreeSet<String>) {
             todo!()
         }
     }
