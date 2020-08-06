@@ -4,8 +4,7 @@ pub trait Memtable {
     type Key;
     type Value;
     fn get(&self, key: &Self::Key) -> Option<&Self::Value>;
-    fn set<F>(&mut self, key: Self::Key, value: Self::Value, on_full: F) -> ()
-    where F: FnOnce((Box<BTreeMap<Self::Key, Self::Value>>, Box<BTreeSet<Self::Key>>)) -> ();
+    fn set(&mut self, key: Self::Key, value: Self::Value) -> Option<(Box<BTreeMap<Self::Key, Self::Value>>, Box<BTreeSet<Self::Key>>)>;
     fn delete(&mut self, key: Self::Key) -> ();
 }
 
@@ -70,12 +69,13 @@ pub mod default {
             self.with_check_tombstone(key, || None, || self.underlying.get(&key))
         }
 
-        fn set<F>(&mut self, key: Self::Key, value: Self::Value, on_full: F) -> ()
-        where F: FnOnce((Box<BTreeMap<Self::Key, Self::Value>>, Box<BTreeSet<Self::Key>>)) -> () {
+        fn set(&mut self, key: Self::Key, value: Self::Value) -> Option<(Box<BTreeMap<Self::Key, Self::Value>>, Box<BTreeSet<Self::Key>>)> {
             self.tombstone.remove(&key);
             self.underlying.insert(key, value);
             if self.underlying.len() >= MAX_ENTRY {
-              on_full(self.flush());
+              Some(self.flush())
+            } else {
+              None
             }
         }
 
