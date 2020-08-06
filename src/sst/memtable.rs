@@ -4,14 +4,9 @@ pub trait Memtable {
     type Key;
     type Value;
     fn get(&self, key: &Self::Key) -> Option<&Self::Value>;
-    fn set(&mut self, key: Self::Key, value: Self::Value) -> ();
+    fn set<F>(&mut self, key: Self::Key, value: Self::Value, on_full: F) -> ()
+    where F: FnOnce((Box<BTreeMap<Self::Key, Self::Value>>, Box<BTreeSet<Self::Key>>)) -> ();
     fn delete(&mut self, key: Self::Key) -> ();
-    fn flush(
-        &mut self,
-    ) -> (
-        Box<BTreeMap<Self::Key, Self::Value>>,
-        Box<BTreeSet<Self::Key>>,
-    );
 }
 
 pub mod default {
@@ -21,12 +16,14 @@ pub mod default {
         hash::Hash,
     };
 
+    const MAX_ENTRY: usize = 10;
+
     pub struct HashMemtable<K, V> {
         underlying: BTreeMap<K, V>,
         tombstone: BTreeSet<K>,
     }
     impl<K: Hash + Eq + Ord, V> HashMemtable<K, V> {
-        pub fn new() -> impl Memtable<Key = K, Value = V> {
+        pub fn new() -> HashMemtable<K, V> {
             HashMemtable {
                 underlying: BTreeMap::new(),
                 tombstone: BTreeSet::new(),
@@ -49,6 +46,21 @@ pub mod default {
                 not_deleted()
             }
         }
+
+        fn flush(
+            &mut self,
+        ) -> (
+            Box<BTreeMap<K, V>>,
+            Box<BTreeSet<K>>,
+        ) {
+            // let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
+            // let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
+            // (Box::new(contents.iter()), Box::new(deleted.iter()))
+            (
+                Box::new(std::mem::replace(&mut self.underlying, BTreeMap::new())),
+                Box::new(std::mem::replace(&mut self.tombstone, BTreeSet::new())),
+            )
+        }
     }
     impl<K: Hash + Eq + Ord, V> Memtable for HashMemtable<K, V> {
         type Key = K;
@@ -58,29 +70,18 @@ pub mod default {
             self.with_check_tombstone(key, || None, || self.underlying.get(&key))
         }
 
-        fn set(&mut self, key: Self::Key, value: Self::Value) -> () {
+        fn set<F>(&mut self, key: Self::Key, value: Self::Value, on_full: F) -> ()
+        where F: FnOnce((Box<BTreeMap<Self::Key, Self::Value>>, Box<BTreeSet<Self::Key>>)) -> () {
             self.tombstone.remove(&key);
             self.underlying.insert(key, value);
+            if self.underlying.len() >= MAX_ENTRY {
+              on_full(self.flush());
+            }
         }
 
         fn delete(&mut self, key: Self::Key) -> () {
             self.underlying.remove(&key);
             self.tombstone.insert(key);
-        }
-
-        fn flush(
-            &mut self,
-        ) -> (
-            Box<BTreeMap<Self::Key, Self::Value>>,
-            Box<BTreeSet<Self::Key>>,
-        ) {
-            // let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
-            // let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
-            // (Box::new(contents.iter()), Box::new(deleted.iter()))
-            (
-                Box::new(std::mem::replace(&mut self.underlying, BTreeMap::new())),
-                Box::new(std::mem::replace(&mut self.tombstone, BTreeSet::new())),
-            )
         }
     }
 }
