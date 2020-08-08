@@ -42,23 +42,34 @@ pub mod default {
         dir: String,
         name: String,
     }
+    #[derive(Debug)]
+    enum FileOption {
+      New,
+      Append,
+    }
+    impl FileOption {
+      fn open(&self, path: &PathBuf) -> Result<File, io::Error> {
+        let mut option = OpenOptions::new();
+        match self {
+          FileOption::New => option.read(true).write(true).truncate(true).create(true),
+          FileOption::Append => option.read(true).append(true).truncate(false).create(true),
+        }.open(path)
+      }
+    }
     impl RichFile {
         fn open_file(
             dir_name: impl Into<String>,
             file_name: impl Into<String>,
+            option: FileOption,
         ) -> Result<RichFile, io::Error> {
             let dir_name = dir_name.into();
             let dir = Path::new(&dir_name);
             let file_name_s: String = file_name.into();
             let path = dir.join(&file_name_s);
-            let f = OpenOptions::new()
-                .read(true)
-                .append(true)
-                .create(true)
-                .open(&path)?;
+            let file = option.open(&path).expect(format!("failed to open file({:?}), option: {:?}", &path, option).deref());
 
             Ok(RichFile {
-                underlying: f,
+                underlying: file,
                 dir: dir_name,
                 name: file_name_s,
             })
@@ -74,17 +85,17 @@ pub mod default {
         const IndexFileName: &'static str = "index";
 
         pub fn new(dir_name: String) -> Result<impl Disktable, io::Error> {
-            let index_file = RichFile::open_file(&dir_name, Self::IndexFileName)?;
+            let index_file = RichFile::open_file(&dir_name, Self::IndexFileName, FileOption::Append)?;
             let index = Self::load_index(&index_file);
 
             Ok(Self { dir_name, index })
         }
         fn data_file(&self) -> RichFile {
-            RichFile::open_file(&self.dir_name, Self::DataFileName)
+            RichFile::open_file(&self.dir_name, Self::DataFileName, FileOption::Append)
                 .expect("failed to open data file")
         }
         fn index_file(&self) -> RichFile {
-            RichFile::open_file(&self.dir_name, Self::IndexFileName)
+            RichFile::open_file(&self.dir_name, Self::IndexFileName, FileOption::Append)
                 .expect("failed to open index file")
         }
 
@@ -201,7 +212,7 @@ pub mod default {
                 }
             });
 
-            let new_data_file = RichFile::open_file(&self.dir_name, "tmp_data")?;
+            let new_data_file = RichFile::open_file(&self.dir_name, "tmp_data", FileOption::New)?;
             let mut data_writer = BufWriter::new(&new_data_file.underlying);
             let mut offset = 0;
 
@@ -229,7 +240,7 @@ pub mod default {
                 offset += written_bytes;
             });
 
-            let new_index_file = RichFile::open_file(&self.dir_name, "tmp_index")?;
+            let new_index_file = RichFile::open_file(&self.dir_name, "tmp_index", FileOption::New)?;
             let mut index_writer = BufWriter::new(&new_index_file.underlying);
             new_index.iter().for_each(|(key, offset)| {
                 let line = format!("{}{}{}\n", key, Self::IndexDelimiter, offset);
@@ -241,7 +252,7 @@ pub mod default {
             std::fs::rename(new_index_file.path(), self.index_file().path())?;
 
             let after = Self::load_index(&self.index_file());
-            println!("before: {:?}, after: {:?}", self.index, after);
+            println!("before: {:?}, after: {:?}, new_index: {:?}", self.index, after, new_index);
             self.index = after;
             Ok(())
         }
