@@ -2,7 +2,7 @@
 //! Basically, this is a Key-Value store on top of local file storage.
 
 use crate::sst::memtable::Memtable;
-use std::{collections::HashMap, fs, ops::Deref, path::Path};
+use std::{collections::HashMap, fs, ops::Deref, path::Path, io};
 mod disktable;
 mod memtable;
 
@@ -26,14 +26,15 @@ impl SSTable {
             .map(|res| res.to_string())
             .or_else(|| self.disktable.find(&key))
     }
-    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<String>) -> () {
+    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<String>) -> Result<(), io::Error> {
         let key = key.into();
         let value = value.into();
         match self.memtable.set(key, value) {
             Some((memtable, tombstones)) => {
-                self.disktable.flush(memtable.deref(), tombstones.deref());
+                println!("flush! memtable: {:?}, tombstones: {:?}", memtable, tombstones);
+                self.disktable.flush(memtable.deref(), tombstones.deref())
             }
-            None => {}
+            None => Ok(())
         }
     }
 }
