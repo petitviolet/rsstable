@@ -140,6 +140,9 @@ pub mod default {
             }
 
             let key_len = ByteUtils::as_usize(key_len);
+            if key_len == 0 {
+              return None;
+            }
             let mut key_data = Vec::with_capacity(key_len);
             let res = data.read_exact(&mut key_data);
             if res.is_err() {
@@ -147,6 +150,9 @@ pub mod default {
             }
 
             let value_len = ByteUtils::as_usize(value_len);
+            if value_len == 0 {
+              return None;
+            }
             let mut value_data = Vec::with_capacity(value_len);
             let res = data.read_exact(&mut value_data);
             if res.is_err() {
@@ -241,6 +247,7 @@ pub mod default {
                 new_index.insert(*key, offset);
                 offset += written_bytes;
             });
+            data_writer.flush().expect("failed to write data");
 
             let new_index_file = RichFile::open_file(&self.dir_name, "tmp_index", FileOption::New)?;
             let mut index_writer = BufWriter::new(&new_index_file.underlying);
@@ -250,11 +257,13 @@ pub mod default {
                     .write(line.as_bytes())
                     .expect(&format!("failed to write a line({})", line));
             });
+            index_writer.flush().expect("failed to write index data");
             std::fs::rename(new_data_file.path(), self.data_file().path())?;
             std::fs::rename(new_index_file.path(), self.index_file().path())?;
 
             let after = Self::load_index(&self.index_file());
-            println!("before: {:?}, after: {:?}, new_index: {:?}", self.index, after, new_index);
+            println!("index - before: {:?}, after: {:?}", self.index, after);
+            println!("entries: {:?}", new_entries);
             self.index = after;
             Ok(())
         }
