@@ -44,4 +44,10 @@ impl SSTable {
             None => Ok(()),
         }
     }
+
+    pub fn clear(&mut self) -> Result<(), io::Error> {
+      self.disktable.clear()?;
+      self.memtable.clear();
+      Ok(())
+    }
 }

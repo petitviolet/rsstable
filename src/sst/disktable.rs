@@ -10,6 +10,7 @@ pub trait Disktable {
         entries: &BTreeMap<String, String>,
         tombstones: &BTreeSet<String>,
     ) -> Result<(), io::Error>;
+    fn clear(&mut self) -> Result<(), io::Error>;
 }
 struct DataLayout {
     pub offset: u64,
@@ -256,6 +257,14 @@ pub mod default {
             self.index = after;
             Ok(())
         }
+        fn clear(&mut self) -> Result<(), io::Error> {
+            std::fs::remove_file(self.data_file().path())?;
+            std::fs::remove_file(self.index_file().path())?;
+            self.index.clear();
+            Ok(())
+        }
+
+        
     }
     struct DisktableIter<'a> {
         disktable: &'a dyn DisktableFetch,

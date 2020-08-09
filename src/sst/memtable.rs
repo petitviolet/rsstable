@@ -13,6 +13,7 @@ pub trait Memtable {
         Box<BTreeSet<Self::Key>>,
     )>;
     fn delete(&mut self, key: Self::Key) -> ();
+    fn clear(&mut self) -> ();
 }
 
 pub mod default {
@@ -88,5 +89,9 @@ pub mod default {
             self.underlying.remove(&key);
             self.tombstone.insert(key);
         }
+        fn clear(&mut self) -> () {
+            self.underlying.clear();
+            self.tombstone.clear();
+        } 
     }
 }
