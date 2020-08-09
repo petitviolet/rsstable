@@ -45,17 +45,18 @@ pub mod default {
     }
     #[derive(Debug)]
     enum FileOption {
-      New,
-      Append,
+        New,
+        Append,
     }
     impl FileOption {
-      fn open(&self, path: &PathBuf) -> Result<File, io::Error> {
-        let mut option = OpenOptions::new();
-        match self {
-          FileOption::New => option.read(true).write(true).truncate(true).create(true),
-          FileOption::Append => option.read(true).append(true).truncate(false).create(true),
-        }.open(path)
-      }
+        fn open(&self, path: &PathBuf) -> Result<File, io::Error> {
+            let mut option = OpenOptions::new();
+            match self {
+                FileOption::New => option.read(true).write(true).truncate(true).create(true),
+                FileOption::Append => option.read(true).append(true).truncate(false).create(true),
+            }
+            .open(path)
+        }
     }
     impl RichFile {
         fn open_file(
@@ -67,7 +68,9 @@ pub mod default {
             let dir = Path::new(&dir_name);
             let file_name_s: String = file_name.into();
             let path = dir.join(&file_name_s);
-            let file = option.open(&path).expect(format!("failed to open file({:?}), option: {:?}", &path, option).deref());
+            let file = option
+                .open(&path)
+                .expect(format!("failed to open file({:?}), option: {:?}", &path, option).deref());
 
             Ok(RichFile {
                 underlying: file,
@@ -87,7 +90,8 @@ pub mod default {
 
         pub fn new(dir_name: String) -> Result<impl Disktable, io::Error> {
             std::fs::create_dir_all(&dir_name).expect("failed to create directory");
-            let index_file = RichFile::open_file(&dir_name, Self::IndexFileName, FileOption::Append)?;
+            let index_file =
+                RichFile::open_file(&dir_name, Self::IndexFileName, FileOption::Append)?;
             let index = Self::load_index(&index_file);
 
             Ok(Self { dir_name, index })
@@ -141,7 +145,7 @@ pub mod default {
 
             let key_len = ByteUtils::as_usize(key_len);
             if key_len == 0 {
-              return None;
+                return None;
             }
             let mut key_data = Vec::with_capacity(key_len);
             let res = data.read_exact(&mut key_data);
@@ -151,7 +155,7 @@ pub mod default {
 
             let value_len = ByteUtils::as_usize(value_len);
             if value_len == 0 {
-              return None;
+                return None;
             }
             let mut value_data = Vec::with_capacity(value_len);
             let res = data.read_exact(&mut value_data);
@@ -273,8 +277,6 @@ pub mod default {
             self.index.clear();
             Ok(())
         }
-
-        
     }
     struct DisktableIter<'a> {
         disktable: &'a dyn DisktableFetch,

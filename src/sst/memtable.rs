@@ -92,6 +92,6 @@ pub mod default {
         fn clear(&mut self) -> () {
             self.underlying.clear();
             self.tombstone.clear();
-        } 
+        }
     }
 }
