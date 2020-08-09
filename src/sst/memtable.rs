@@ -54,13 +54,9 @@ pub mod default {
         }
 
         fn flush(&mut self) -> (Box<BTreeMap<K, V>>, Box<BTreeSet<K>>) {
-            // let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
-            // let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
-            // (Box::new(contents.iter()), Box::new(deleted.iter()))
-            (
-                Box::new(std::mem::replace(&mut self.underlying, BTreeMap::new())),
-                Box::new(std::mem::replace(&mut self.tombstone, BTreeSet::new())),
-            )
+            let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
+            let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
+            (Box::new(contents), Box::new(deleted))
         }
     }
     impl<K: Hash + Eq + Ord, V> Memtable for HashMemtable<K, V> {
