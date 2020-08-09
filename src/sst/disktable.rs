@@ -86,6 +86,7 @@ pub mod default {
         const IndexFileName: &'static str = "index";
 
         pub fn new(dir_name: String) -> Result<impl Disktable, io::Error> {
+            std::fs::create_dir_all(&dir_name).expect("failed to create directory");
             let index_file = RichFile::open_file(&dir_name, Self::IndexFileName, FileOption::Append)?;
             let index = Self::load_index(&index_file);
 
