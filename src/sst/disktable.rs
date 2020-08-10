@@ -151,8 +151,11 @@ pub mod default {
             let res = data.read_exact(&mut key_data);
             if res.is_err() {
                 return None;
-            } else if key_data.len() != key_len { 
-              panic!("invalid key. offset: {}, key_len: {}, key_data: {:?}", offset, key_len, key_data);
+            } else if key_data.len() != key_len {
+                panic!(
+                    "invalid key. offset: {}, key_len: {}, key_data: {:?}",
+                    offset, key_len, key_data
+                );
             }
 
             let value_len = ByteUtils::as_usize(value_len);
@@ -164,8 +167,11 @@ pub mod default {
             let res = data.read_exact(&mut value_data);
             if res.is_err() {
                 return None;
-            } else if value_data.len() != value_len { 
-              panic!("invalid value. offset: {}, lvalue_len: {}, value_data: {:?}", offset, value_len, value_data);
+            } else if value_data.len() != value_len {
+                panic!(
+                    "invalid value. offset: {}, lvalue_len: {}, value_data: {:?}",
+                    offset, value_len, value_data
+                );
             }
 
             let data_layout = DataLayout {
@@ -189,7 +195,7 @@ pub mod default {
             std::str::from_utf8(array).unwrap().to_string()
         }
         fn from_usize(n: usize) -> [u8; 4] {
-          (n as u32).to_le_bytes()
+            (n as u32).to_le_bytes()
         }
     }
 
@@ -217,16 +223,12 @@ pub mod default {
                 let new_value = entries.get(key).map(|s| s.to_string());
                 let value = match self.index.get(key) {
                     Some(offset) => match self.fetch(*offset) {
-                        Some((_, _, old_value)) => {
-                            new_value.unwrap_or(old_value)
-                        }
+                        Some((_, _, old_value)) => new_value.unwrap_or(old_value),
                         None => {
                             unreachable!("invalid key({}). offset({})", key, offset);
                         }
                     },
-                    None => {
-                        new_value.unwrap_or_else(|| panic!("invalid key({})", key))
-                    }
+                    None => new_value.unwrap_or_else(|| panic!("invalid key({})", key)),
                 };
                 new_entries.insert(key, value);
             });
@@ -249,9 +251,7 @@ pub mod default {
                                     data_writer.write(value_bytes).and_then(|size4| {
                                         data_writer
                                             .write(b"\0")
-                                            .map(|size5| {
-                                              size1 + size2 + size3 + size4 + size5
-                                            })
+                                            .map(|size5| size1 + size2 + size3 + size4 + size5)
                                     })
                                 })
                             })
