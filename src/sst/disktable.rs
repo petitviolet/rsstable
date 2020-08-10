@@ -147,20 +147,25 @@ pub mod default {
             if key_len == 0 {
                 return None;
             }
-            let mut key_data = Vec::with_capacity(key_len);
+            let mut key_data = vec![0u8; key_len];
             let res = data.read_exact(&mut key_data);
             if res.is_err() {
                 return None;
+            } else if key_data.len() != key_len { 
+              panic!("invalid key. offset: {}, key_len: {}, key_data: {:?}", offset, key_len, key_data);
             }
 
             let value_len = ByteUtils::as_usize(value_len);
             if value_len == 0 {
                 return None;
             }
-            let mut value_data = Vec::with_capacity(value_len);
+            // let mut value_data = Vec::with_capacity(value_len); // doesn't work somehow
+            let mut value_data = vec![0u8; value_len];
             let res = data.read_exact(&mut value_data);
             if res.is_err() {
                 return None;
+            } else if value_data.len() != value_len { 
+              panic!("invalid value. offset: {}, lvalue_len: {}, value_data: {:?}", offset, value_len, value_data);
             }
 
             let data_layout = DataLayout {
@@ -182,6 +187,9 @@ pub mod default {
         }
         fn as_string(array: &[u8]) -> String {
             std::str::from_utf8(array).unwrap().to_string()
+        }
+        fn from_usize(n: usize) -> [u8; 4] {
+          (n as u32).to_le_bytes()
         }
     }
 
@@ -207,21 +215,20 @@ pub mod default {
                 }
 
                 let new_value = entries.get(key).map(|s| s.to_string());
-                match self.index.get(key) {
+                let value = match self.index.get(key) {
                     Some(offset) => match self.fetch(*offset) {
                         Some((_, _, old_value)) => {
-                            let value = new_value.unwrap_or(old_value);
-                            new_entries.insert(key, value);
+                            new_value.unwrap_or(old_value)
                         }
                         None => {
                             unreachable!("invalid key({}). offset({})", key, offset);
                         }
                     },
                     None => {
-                        let value = new_value.unwrap_or_else(|| panic!("invalid key({})", key));
-                        new_entries.insert(key, value);
+                        new_value.unwrap_or_else(|| panic!("invalid key({})", key))
                     }
-                }
+                };
+                new_entries.insert(key, value);
             });
 
             let new_data_file = RichFile::open_file(&self.dir_name, "tmp_data", FileOption::New)?;
@@ -233,16 +240,18 @@ pub mod default {
                 let key_bytes = key.as_bytes();
                 let value_bytes = value.as_bytes();
                 let written_bytes = data_writer
-                    .write(&(key_bytes.len() as u32).to_le_bytes())
+                    .write(&ByteUtils::from_usize(key_bytes.len()))
                     .and_then(|size1| {
                         data_writer
-                            .write(&(value_bytes.len() as u32).to_le_bytes())
+                            .write(&ByteUtils::from_usize(value_bytes.len()))
                             .and_then(|size2| {
                                 data_writer.write(key_bytes).and_then(|size3| {
                                     data_writer.write(value_bytes).and_then(|size4| {
                                         data_writer
                                             .write(b"\0")
-                                            .map(|size5| size1 + size2 + size3 + size4 + size5)
+                                            .map(|size5| {
+                                              size1 + size2 + size3 + size4 + size5
+                                            })
                                     })
                                 })
                             })
