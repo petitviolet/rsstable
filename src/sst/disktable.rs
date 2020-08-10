@@ -17,13 +17,8 @@ struct DataLayout {
     pub key_len: usize,
     pub value_len: usize,
 }
-// for iterator
-trait DisktableFetch {
-    fn fetch(&self, offset: u64) -> Option<(DataLayout, String, String)>;
-}
-
 pub mod default {
-    use super::{DataLayout, Disktable, DisktableFetch};
+    use super::{DataLayout, Disktable};
     use io::{BufRead, BufWriter, Read, Write};
     use std::{
         collections::{BTreeMap, BTreeSet},
@@ -118,16 +113,6 @@ pub mod default {
                 }
             })
         }
-
-        fn iter<'a>(&'a self) -> DisktableIter<'a> {
-            DisktableIter {
-                disktable: self,
-                next: 0,
-            }
-        }
-    }
-
-    impl DisktableFetch for FileDisktable {
         fn fetch(&self, offset: u64) -> Option<(DataLayout, String, String)> {
             let mut data = self.data_file().underlying;
             data.seek(SeekFrom::Start(offset)).unwrap();
@@ -285,22 +270,6 @@ pub mod default {
             std::fs::remove_file(self.index_file().path())?;
             self.index.clear();
             Ok(())
-        }
-    }
-    struct DisktableIter<'a> {
-        disktable: &'a dyn DisktableFetch,
-        next: u64,
-    }
-    impl<'a> Iterator for DisktableIter<'a> {
-        type Item = (String, String);
-        fn next(&mut self) -> Option<Self::Item> {
-            match self.disktable.fetch(self.next) {
-                Some((layout, key, value)) => {
-                    self.next = self.next + 8 + layout.key_len as u64 + layout.value_len as u64;
-                    Some((key, value))
-                }
-                None => None,
-            }
         }
     }
 }
