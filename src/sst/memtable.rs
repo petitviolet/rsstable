@@ -23,15 +23,15 @@ pub mod default {
         hash::Hash,
     };
 
-    const MAX_ENTRY: usize = 3;
-
     pub struct HashMemtable<K, V> {
+        max_entry: usize,
         underlying: BTreeMap<K, V>,
         tombstone: BTreeSet<K>,
     }
     impl<K: Hash + Eq + Ord, V> HashMemtable<K, V> {
-        pub fn new() -> HashMemtable<K, V> {
+        pub fn new(max_entry: usize) -> HashMemtable<K, V> {
             HashMemtable {
+                max_entry,
                 underlying: BTreeMap::new(),
                 tombstone: BTreeSet::new(),
             }
@@ -78,7 +78,7 @@ pub mod default {
         )> {
             self.tombstone.remove(&key);
             self.underlying.insert(key, value);
-            if self.underlying.len() >= MAX_ENTRY {
+            if self.underlying.len() >= self.max_entry {
                 Some(self.flush())
             } else {
                 None

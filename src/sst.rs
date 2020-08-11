@@ -13,9 +13,9 @@ pub struct SSTable {
 }
 
 impl SSTable {
-    pub fn new(dir_name: impl Into<String>) -> SSTable {
+    pub fn new(dir_name: impl Into<String>, mem_max_entry: usize) -> SSTable {
         SSTable {
-            memtable: Box::new(memtable::default::HashMemtable::new()),
+            memtable: Box::new(memtable::default::HashMemtable::new(mem_max_entry)),
             disktable: Box::new(disktable::default::FileDisktable::new(dir_name.into()).unwrap()),
         }
     }
