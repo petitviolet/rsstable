@@ -1,14 +1,13 @@
 //! SSTable(Sorted String Table) in Rust
 //! Basically, this is a Key-Value store on top of local file storage.
 
-use crate::sst::memtable::Memtable;
-use std::{collections::HashMap, fs, io, ops::Deref, path::Path};
+use std::{io, ops::Deref};
 mod disktable;
 mod memtable;
 
 pub struct SSTable {
-    // memtable: Box<dyn memtable::Memtable<Key = String, Value = String>>,
-    memtable: Box<memtable::default::HashMemtable<String, String>>,
+    // Sorted *String* Table :)
+    memtable: Box<dyn memtable::Memtable<Key = String, Value = String>>,
     disktable: Box<dyn disktable::Disktable>,
 }
 
