@@ -1,7 +1,7 @@
 //! SSTable(Sorted String Table) in Rust
 //! Basically, this is a Key-Value store on top of local file storage.
 
-use std::{io, ops::Deref, collections::{BTreeMap, BTreeSet}};
+use std::{io, ops::Deref};
 mod disktable;
 mod memtable;
 
@@ -32,15 +32,16 @@ impl SSTable {
     ) -> Result<(), io::Error> {
         let key = key.into();
         let value = value.into();
-        let on_flush = memtable::on_flush(|args: (Box<BTreeMap<String, String>>, Box<BTreeSet<String>>)| {
-            let (memtable, tombstones) = args;
-            println!(
-                "flush! memtable: {:?}, tombstones: {:?}",
-                memtable, tombstones
-            );
-            self.disktable.flush(memtable.deref(), tombstones.deref())
-        });
-        self.memtable.set(key, value, on_flush)
+        match self.memtable.set(key, value) {
+            Some((memtable, tombstones)) => {
+                println!(
+                    "flush! memtable: {:?}, tombstones: {:?}",
+                    memtable, tombstones
+                );
+                self.disktable.flush(memtable.deref(), tombstones.deref())
+            }
+            None => Ok(()),
+        }
     }
 
     pub fn clear(&mut self) -> Result<(), io::Error> {
@@ -48,18 +49,4 @@ impl SSTable {
         self.memtable.clear();
         Ok(())
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::sst::SSTable;
-    #[test]
-    fn test_get_and_set_and_get() {
-      let mut sst = SSTable::new("./test_tmp", 10);
-      assert_eq!(sst.get("key"), None);
-      sst.insert("key", "value").expect("success");
-      assert_eq!(sst.get("key"), Some("value".to_string()));
-    }
-
-
 }
