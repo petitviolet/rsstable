@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{io, collections::{BTreeMap, BTreeSet}};
 
 pub trait Memtable {
     type Key;
@@ -8,19 +8,38 @@ pub trait Memtable {
         &mut self,
         key: Self::Key,
         value: Self::Value,
-    ) -> Option<(
-        Box<BTreeMap<Self::Key, Self::Value>>,
-        Box<BTreeSet<Self::Key>>,
-    )>;
+        on_flush: MemtableOnFlush<Self::Key, Self::Value>,
+    ) -> io::Result<()>;
     fn delete(&mut self, key: Self::Key) -> ();
     fn clear(&mut self) -> ();
 }
+pub struct MemtableOnFlush<'a, Key, Value> { 
+  pub f: Box<dyn FnMut((
+    Box<BTreeMap<Key, Value>>,
+    Box<BTreeSet<Key>>,
+  )) -> io::Result<()> + 'a>,
+}
+impl<'a, Key, Value> MemtableOnFlush<'a, Key, Value> { 
+  fn call(&mut self, args: (
+    Box<BTreeMap<Key, Value>>,
+    Box<BTreeSet<Key>>,
+  )) -> io::Result<()> { 
+    (self.f)(args)
+  }
+}
+pub fn on_flush<'a, Key, Value>(f: impl FnMut((
+  Box<BTreeMap<Key, Value>>,
+  Box<BTreeSet<Key>>,
+)) -> io::Result<()> + 'a) -> MemtableOnFlush<'a, Key, Value>
+{
+  MemtableOnFlush { f: Box::new(f) }
+}
 
 pub mod default {
-    use super::Memtable;
+    use super::{MemtableOnFlush, Memtable};
     use std::{
         collections::{BTreeMap, BTreeSet},
-        hash::Hash,
+        hash::Hash, io,
     };
 
     pub struct HashMemtable<K, V> {
@@ -72,16 +91,14 @@ pub mod default {
             &mut self,
             key: Self::Key,
             value: Self::Value,
-        ) -> Option<(
-            Box<BTreeMap<Self::Key, Self::Value>>,
-            Box<BTreeSet<Self::Key>>,
-        )> {
+            on_flush: MemtableOnFlush<Self::Key, Self::Value>,
+        ) -> io::Result<()> {
             self.tombstone.remove(&key);
             self.underlying.insert(key, value);
             if self.underlying.len() >= self.max_entry {
-                Some(self.flush())
+                on_flush.call(self.flush())
             } else {
-                None
+                Ok(())
             }
         }
 
