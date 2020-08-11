@@ -79,24 +79,24 @@ pub mod default {
     }
 
     impl FileDisktable {
-        const IndexDelimiter: &'static str = "\t";
-        const DataFileName: &'static str = "data";
-        const IndexFileName: &'static str = "index";
+        const INDEX_DELIMITER: &'static str = "\t";
+        const DATA_FILE_NAME: &'static str = "data";
+        const INDEX_FILE_NAME: &'static str = "index";
 
         pub fn new(dir_name: String) -> Result<impl Disktable, io::Error> {
             std::fs::create_dir_all(&dir_name).expect("failed to create directory");
             let index_file =
-                RichFile::open_file(&dir_name, Self::IndexFileName, FileOption::Append)?;
+                RichFile::open_file(&dir_name, Self::INDEX_FILE_NAME, FileOption::Append)?;
             let index = Self::load_index(&index_file);
 
             Ok(Self { dir_name, index })
         }
         fn data_file(&self) -> RichFile {
-            RichFile::open_file(&self.dir_name, Self::DataFileName, FileOption::Append)
+            RichFile::open_file(&self.dir_name, Self::DATA_FILE_NAME, FileOption::Append)
                 .expect("failed to open data file")
         }
         fn index_file(&self) -> RichFile {
-            RichFile::open_file(&self.dir_name, Self::IndexFileName, FileOption::Append)
+            RichFile::open_file(&self.dir_name, Self::INDEX_FILE_NAME, FileOption::Append)
                 .expect("failed to open index file")
         }
 
@@ -104,7 +104,7 @@ pub mod default {
             let lines = io::BufReader::new(&index_file.underlying).lines();
             lines.fold(BTreeMap::new(), |mut map, line| match line {
                 Ok(line) => {
-                    let res: Vec<_> = line.split(Self::IndexDelimiter).collect();
+                    let res: Vec<_> = line.split(Self::INDEX_DELIMITER).collect();
                     map.insert(res[0].to_string(), res[1].parse().unwrap());
                     map
                 }
@@ -250,7 +250,7 @@ pub mod default {
             let new_index_file = RichFile::open_file(&self.dir_name, "tmp_index", FileOption::New)?;
             let mut index_writer = BufWriter::new(&new_index_file.underlying);
             new_index.iter().for_each(|(key, offset)| {
-                let line = format!("{}{}{}\n", key, Self::IndexDelimiter, offset);
+                let line = format!("{}{}{}\n", key, Self::INDEX_DELIMITER, offset);
                 index_writer
                     .write(line.as_bytes())
                     .expect(&format!("failed to write a line({})", line));
