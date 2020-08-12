@@ -8,31 +8,26 @@ pub trait Memtable {
         &mut self,
         key: Self::Key,
         value: Self::Value,
-        on_flush: MemtableOnFlush<Self::Key, Self::Value>,
-    ) -> io::Result<()>;
+    ) -> MemtableOnFlush<Self::Key, Self::Value>;
     fn delete(&mut self, key: Self::Key) -> ();
     fn clear(&mut self) -> ();
 }
-pub struct MemtableOnFlush<'a, Key, Value> { 
-  pub f: Box<dyn FnMut((
-    Box<BTreeMap<Key, Value>>,
-    Box<BTreeSet<Key>>,
-  )) -> io::Result<()> + 'a>,
+pub struct MemtableOnFlush<Key, Value> { 
+  flushed: Option<(Box<BTreeMap<Key, Value>>,
+  Box<BTreeSet<Key>>)>
 }
-impl<'a, Key, Value> MemtableOnFlush<'a, Key, Value> { 
-  fn call(&mut self, args: (
+
+impl<Key, Value> MemtableOnFlush<Key, Value> { 
+  pub fn on_flush(self, f: impl FnOnce((
     Box<BTreeMap<Key, Value>>,
     Box<BTreeSet<Key>>,
-  )) -> io::Result<()> { 
-    (self.f)(args)
+  )) -> io::Result<()>) -> io::Result<()>
+  {
+    match self.flushed {
+      Some(flushed) => f(flushed),
+      None => Ok(())
+    }
   }
-}
-pub fn on_flush<'a, Key, Value>(f: impl FnMut((
-  Box<BTreeMap<Key, Value>>,
-  Box<BTreeSet<Key>>,
-)) -> io::Result<()> + 'a) -> MemtableOnFlush<'a, Key, Value>
-{
-  MemtableOnFlush { f: Box::new(f) }
 }
 
 pub mod default {
@@ -91,14 +86,13 @@ pub mod default {
             &mut self,
             key: Self::Key,
             value: Self::Value,
-            on_flush: MemtableOnFlush<Self::Key, Self::Value>,
-        ) -> io::Result<()> {
+        ) -> MemtableOnFlush<Self::Key, Self::Value> {
             self.tombstone.remove(&key);
             self.underlying.insert(key, value);
             if self.underlying.len() >= self.max_entry {
-                on_flush.call(self.flush())
+              MemtableOnFlush { flushed: Some(self.flush()) }
             } else {
-                Ok(())
+              MemtableOnFlush { flushed: None }
             }
         }
 

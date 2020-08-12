@@ -10,7 +10,6 @@ pub struct SSTable {
     memtable: Box<dyn memtable::Memtable<Key = String, Value = String>>,
     disktable: Box<dyn disktable::Disktable>,
 }
-
 impl SSTable {
     pub fn new(dir_name: impl Into<String>, mem_max_entry: usize) -> SSTable {
         SSTable {
@@ -32,15 +31,14 @@ impl SSTable {
     ) -> Result<(), io::Error> {
         let key = key.into();
         let value = value.into();
-        let on_flush = memtable::on_flush(|args: (Box<BTreeMap<String, String>>, Box<BTreeSet<String>>)| {
-            let (memtable, tombstones) = args;
-            println!(
-                "flush! memtable: {:?}, tombstones: {:?}",
-                memtable, tombstones
-            );
-            self.disktable.flush(memtable.deref(), tombstones.deref())
-        });
-        self.memtable.set(key, value, on_flush)
+        self.memtable.set(key, value).on_flush(|args: (Box<BTreeMap<String, String>>, Box<BTreeSet<String>>)| {
+          let (memtable, tombstones) = args;
+          println!(
+              "flush! memtable: {:?}, tombstones: {:?}",
+              memtable, tombstones
+          );
+          self.disktable.flush(memtable.deref(), tombstones.deref())
+      })
     }
 
     pub fn clear(&mut self) -> Result<(), io::Error> {
