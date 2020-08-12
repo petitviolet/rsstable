@@ -21,6 +21,7 @@ struct DataLayout {
 pub mod default {
     use super::{DataLayout, Disktable};
     use io::{BufRead, BufWriter, Read, Write};
+    use regex::Regex;
     use std::{
         collections::{BTreeMap, BTreeSet},
         fs::{File, OpenOptions},
@@ -28,7 +29,6 @@ pub mod default {
         ops::Deref,
         path::{Path, PathBuf},
     };
-    use regex::Regex;
 
     pub struct FileDisktable {
         dir_name: String,
@@ -93,28 +93,37 @@ pub mod default {
             let index = Self::load_index(&index_file);
             let data_gen = Self::get_latest_data_gen(&dir_name)?;
 
-            Ok(Self { data_gen, dir_name, index })
+            Ok(Self {
+                data_gen,
+                dir_name,
+                index,
+            })
         }
 
-        fn get_latest_data_gen(dir_name: &String) -> io::Result<i32> { 
-          std::fs::read_dir(dir_name)
-          .map(|dir| {
-            dir.fold(0i32, |gen, file| {
-              let file = file.unwrap();
-              let file_name = file.file_name();
-              let file_name = file_name.to_string_lossy() ;
-              match Regex::new(&format!("{}_(?P<gen>\\d+)", Self::DATA_FILE_NAME_PREFIX)).unwrap()
-                .captures(&file_name) {
-                    Some(cap) => std::cmp::max(gen, cap["gen"].parse::<_>().unwrap()),
-                    None => gen,
-                }
+        fn get_latest_data_gen(dir_name: &String) -> io::Result<i32> {
+            std::fs::read_dir(dir_name).map(|dir| {
+                dir.fold(0i32, |gen, file| {
+                    let file = file.unwrap();
+                    let file_name = file.file_name();
+                    let file_name = file_name.to_string_lossy();
+                    match Regex::new(&format!("{}_(?P<gen>\\d+)", Self::DATA_FILE_NAME_PREFIX))
+                        .unwrap()
+                        .captures(&file_name)
+                    {
+                        Some(cap) => std::cmp::max(gen, cap["gen"].parse::<_>().unwrap()),
+                        None => gen,
+                    }
+                })
             })
-          })
         }
 
         fn data_file(&self, gen: i32) -> RichFile {
-            RichFile::open_file(&self.dir_name, format!("{}_{}", Self::DATA_FILE_NAME_PREFIX, gen), FileOption::Append)
-                .expect("failed to open data file")
+            RichFile::open_file(
+                &self.dir_name,
+                format!("{}_{}", Self::DATA_FILE_NAME_PREFIX, gen),
+                FileOption::Append,
+            )
+            .expect("failed to open data file")
         }
         fn index_file(&self) -> RichFile {
             RichFile::open_file(&self.dir_name, Self::INDEX_FILE_NAME, FileOption::Append)
@@ -126,7 +135,10 @@ pub mod default {
             lines.fold(BTreeMap::new(), |mut map, line| match line {
                 Ok(line) => {
                     let res: Vec<_> = line.split(Self::INDEX_DELIMITER).collect();
-                    map.insert(res[0].to_string(), (res[1].parse().unwrap(), res[2].parse().unwrap()));
+                    map.insert(
+                        res[0].to_string(),
+                        (res[1].parse().unwrap(), res[2].parse().unwrap()),
+                    );
                     map
                 }
                 Err(err) => {
@@ -208,12 +220,12 @@ pub mod default {
 
     impl Disktable for FileDisktable {
         fn find(&self, key: &String) -> Option<String> {
-            self.index
-                .get(key)
-                .and_then(|(data_gen, offset)| match self.fetch(*data_gen, *offset) {
+            self.index.get(key).and_then(|(data_gen, offset)| {
+                match self.fetch(*data_gen, *offset) {
                     Some((_, _key, _value)) if _key == *key => Some(_value),
                     _ => None,
-                })
+                }
+            })
         }
 
         fn flush(
@@ -231,17 +243,17 @@ pub mod default {
                 let new_value = entries.get(key).map(|s| s.to_string());
                 let (data_gen, value) = match self.index.get(key) {
                     Some((data_gen, offset)) => match self.fetch(*data_gen, *offset) {
-                        Some((_, _, old_value)) => {
-                          match new_value {
+                        Some((_, _, old_value)) => match new_value {
                             Some(new_value) => (next_data_gen, new_value),
                             None => (*data_gen, old_value),
-                          }
                         },
                         None => {
                             unreachable!("invalid key({}). offset({})", key, offset);
                         }
                     },
-                    None => new_value.map(|v| (next_data_gen, v)).unwrap_or_else(|| panic!("invalid key({})", key)),
+                    None => new_value
+                        .map(|v| (next_data_gen, v))
+                        .unwrap_or_else(|| panic!("invalid key({})", key)),
                 };
                 new_entries.insert(key, (data_gen, value));
             });
@@ -278,7 +290,14 @@ pub mod default {
             let new_index_file = RichFile::open_file(&self.dir_name, "tmp_index", FileOption::New)?;
             let mut index_writer = BufWriter::new(&new_index_file.underlying);
             new_index.iter().for_each(|(key, (data_gen, offset))| {
-                let line = format!("{}{}{}{}{}\n", key, Self::INDEX_DELIMITER, data_gen, Self::INDEX_DELIMITER, offset);
+                let line = format!(
+                    "{}{}{}{}{}\n",
+                    key,
+                    Self::INDEX_DELIMITER,
+                    data_gen,
+                    Self::INDEX_DELIMITER,
+                    offset
+                );
                 index_writer
                     .write(line.as_bytes())
                     .expect(&format!("failed to write a line({})", line));
@@ -296,7 +315,7 @@ pub mod default {
         }
         fn clear(&mut self) -> Result<(), io::Error> {
             (0..self.data_gen).for_each(|gen| {
-              std::fs::remove_file(self.data_file(gen).path()).expect("failed to remove file");
+                std::fs::remove_file(self.data_file(gen).path()).expect("failed to remove file");
             });
             std::fs::remove_file(self.index_file().path())?;
             self.index.clear();
