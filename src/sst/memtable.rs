@@ -1,4 +1,7 @@
-use std::{io, collections::{BTreeMap, BTreeSet}};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io,
+};
 
 pub trait Memtable {
     type Key;
@@ -12,29 +15,28 @@ pub trait Memtable {
     fn delete(&mut self, key: Self::Key) -> ();
     fn clear(&mut self) -> ();
 }
-pub struct MemtableOnFlush<Key, Value> { 
-  flushed: Option<(Box<BTreeMap<Key, Value>>,
-  Box<BTreeSet<Key>>)>
+pub struct MemtableOnFlush<Key, Value> {
+    flushed: Option<(Box<BTreeMap<Key, Value>>, Box<BTreeSet<Key>>)>,
 }
 
-impl<Key, Value> MemtableOnFlush<Key, Value> { 
-  pub fn on_flush(self, f: impl FnOnce((
-    Box<BTreeMap<Key, Value>>,
-    Box<BTreeSet<Key>>,
-  )) -> io::Result<()>) -> io::Result<()>
-  {
-    match self.flushed {
-      Some(flushed) => f(flushed),
-      None => Ok(())
+impl<Key, Value> MemtableOnFlush<Key, Value> {
+    pub fn on_flush(
+        self,
+        f: impl FnOnce((Box<BTreeMap<Key, Value>>, Box<BTreeSet<Key>>)) -> io::Result<()>,
+    ) -> io::Result<()> {
+        match self.flushed {
+            Some(flushed) => f(flushed),
+            None => Ok(()),
+        }
     }
-  }
 }
 
 pub mod default {
-    use super::{MemtableOnFlush, Memtable};
+    use super::{Memtable, MemtableOnFlush};
     use std::{
         collections::{BTreeMap, BTreeSet},
-        hash::Hash, io,
+        hash::Hash,
+        io,
     };
 
     pub struct HashMemtable<K, V> {
@@ -90,9 +92,11 @@ pub mod default {
             self.tombstone.remove(&key);
             self.underlying.insert(key, value);
             if self.underlying.len() >= self.max_entry {
-              MemtableOnFlush { flushed: Some(self.flush()) }
+                MemtableOnFlush {
+                    flushed: Some(self.flush()),
+                }
             } else {
-              MemtableOnFlush { flushed: None }
+                MemtableOnFlush { flushed: None }
             }
         }
 
