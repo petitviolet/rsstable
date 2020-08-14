@@ -54,14 +54,22 @@ impl SSTable {
     }
 }
 
-#[cfg(test)]
 mod tests {
     use crate::sst::SSTable;
     #[test]
     fn test_get_and_set_and_get() {
-        let mut sst = SSTable::new("./test_tmp", 10);
-        assert_eq!(sst.get("key"), None);
-        sst.insert("key", "value").expect("success");
-        assert_eq!(sst.get("key"), Some("value".to_string()));
+        let mut sst = SSTable::new("./test_tmp", 3);
+        assert!(sst.clear().is_ok());
+        let key = |i| format!("key-{}", i);
+        let value = |i| format!("value-{}", i);
+        (1..=10).for_each(|i| {
+          println!("{} ------", i);
+          assert_eq!(sst.get(key(i)), None);
+          sst.insert(key(i), value(i)).expect("success");
+          assert_eq!(sst.get(key(i)), Some(value(i)));
+        });
+        (1..=10).for_each(|i| {
+          assert_eq!(sst.get(key(i)), Some(value(i)));
+        });
     }
 }
