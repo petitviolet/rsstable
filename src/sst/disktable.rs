@@ -7,8 +7,8 @@ pub trait Disktable {
     fn find(&self, key: &String) -> Option<String>;
     fn flush(
         &mut self,
-        entries: &BTreeMap<String, String>,
-        tombstones: &BTreeSet<String>,
+        entries: Box<BTreeMap<String, String>>,
+        tombstones: Box<BTreeSet<String>>,
     ) -> Result<(), io::Error>;
     fn clear(&mut self) -> Result<(), io::Error>;
 }
@@ -34,6 +34,7 @@ pub mod default {
         dir_name: String,
         data_gen: i32,
         index: BTreeMap<String, (i32, u64)>,
+        flushing: Option<(Box<BTreeMap<String, String>>, Box<BTreeSet<String>>)>,
     }
 
     struct RichFile {
@@ -220,19 +221,33 @@ pub mod default {
 
     impl Disktable for FileDisktable {
         fn find(&self, key: &String) -> Option<String> {
-            self.index.get(key).and_then(|(data_gen, offset)| {
-                match self.fetch(*data_gen, *offset) {
-                    Some((_, _key, _value)) if _key == *key => Some(_value),
-                    _ => None,
-                }
-            })
+            self.flushing
+                .as_ref()
+                .and_then(|(entries, tombstones)| {
+                    if tombstones.get(key).is_none() {
+                        entries.get(key).map(|s| s.to_string())
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| {
+                    self.index.get(key).and_then(|(data_gen, offset)| {
+                        match self.fetch(*data_gen, *offset) {
+                            Some((_, _key, _value)) if _key == *key => Some(_value),
+                            _ => None,
+                        }
+                    })
+                })
         }
 
         fn flush(
             &mut self,
-            entries: &BTreeMap<String, String>,
-            tombstones: &BTreeSet<String>,
+            entries: Box<BTreeMap<String, String>>,
+            tombstones: Box<BTreeSet<String>>,
         ) -> Result<(), io::Error> {
+            self.flushing = Some((entries, tombstones));
+            let (entries, tombstones) = self.flushing.as_ref().unwrap();
+
             let next_data_gen = self.data_gen + 1;
             let mut new_entries = BTreeMap::new();
             self.index.keys().chain(entries.keys()).for_each(|key| {
@@ -311,6 +326,7 @@ pub mod default {
             println!("entries: {:?}", new_entries);
             self.index = after;
             self.data_gen = next_data_gen;
+            self.flushing = None;
             Ok(())
         }
         fn clear(&mut self) -> Result<(), io::Error> {

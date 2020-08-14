@@ -42,7 +42,7 @@ impl SSTable {
                     "flush! memtable: {:?}, tombstones: {:?}",
                     memtable, tombstones
                 );
-                self.disktable.flush(memtable.deref(), tombstones.deref())
+                self.disktable.flush(memtable, tombstones)
             },
         )
     }
