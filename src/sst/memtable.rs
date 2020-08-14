@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    io, hash::Hash,
+    hash::Hash,
+    io,
 };
 
 pub trait Memtable {
@@ -16,25 +17,28 @@ pub trait Memtable {
     fn clear(&mut self) -> ();
 }
 pub enum GetResult<T> {
-  Found(T),
-  Deleted,
-  NotFound,
+    Found(T),
+    Deleted,
+    NotFound,
 }
 pub struct MemtableOnFlush<Key, Value> {
     flushed: Option<MemtableEntries<Key, Value>>,
 }
 pub struct MemtableEntries<Key, Value> {
-  pub entries: Box<BTreeMap<Key, Value>>, 
-  pub tombstones: Box<BTreeSet<Key>>,
+    pub entries: Box<BTreeMap<Key, Value>>,
+    pub tombstones: Box<BTreeSet<Key>>,
 }
 impl<K: Hash + Eq + Ord, V> MemtableEntries<K, V> {
-  pub fn get(&self, key: &K) -> GetResult<&V> {
-      if self.tombstones.get(key).is_none() {
-          self.entries.get(key).map(GetResult::Found).unwrap_or(GetResult::NotFound)
-      } else {
-          GetResult::Deleted
-      }
-  }
+    pub fn get(&self, key: &K) -> GetResult<&V> {
+        if self.tombstones.get(key).is_none() {
+            self.entries
+                .get(key)
+                .map(GetResult::Found)
+                .unwrap_or(GetResult::NotFound)
+        } else {
+            GetResult::Deleted
+        }
+    }
 }
 
 impl<Key, Value> MemtableOnFlush<Key, Value> {
@@ -50,7 +54,7 @@ impl<Key, Value> MemtableOnFlush<Key, Value> {
 }
 
 pub mod default {
-    use super::{Memtable, MemtableOnFlush, GetResult, MemtableEntries};
+    use super::{GetResult, Memtable, MemtableEntries, MemtableOnFlush};
     use std::{
         collections::{BTreeMap, BTreeSet},
         hash::Hash,
@@ -91,9 +95,9 @@ pub mod default {
         fn flush(&mut self) -> MemtableEntries<K, V> {
             let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
             let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
-            MemtableEntries{ 
-              entries: Box::new(contents), 
-              tombstones: Box::new(deleted),
+            MemtableEntries {
+                entries: Box::new(contents),
+                tombstones: Box::new(deleted),
             }
         }
     }
@@ -102,9 +106,16 @@ pub mod default {
         type Value = V;
 
         fn get(&self, key: &Self::Key) -> GetResult<&Self::Value> {
-            self.with_check_tombstone(key, 
-              || GetResult::Deleted,
-              || self.underlying.get(&key).map(GetResult::Found).unwrap_or(GetResult::NotFound))
+            self.with_check_tombstone(
+                key,
+                || GetResult::Deleted,
+                || {
+                    self.underlying
+                        .get(&key)
+                        .map(GetResult::Found)
+                        .unwrap_or(GetResult::NotFound)
+                },
+            )
         }
 
         fn set(

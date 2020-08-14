@@ -2,18 +2,16 @@ mod byte_utils;
 mod data_file;
 mod rich_file;
 
+use super::memtable::MemtableEntries;
 use std::{
     collections::{BTreeMap, BTreeSet},
     io,
 };
-use super::memtable::MemtableEntries;
 
 pub trait Disktable {
     fn find(&self, key: &String) -> Option<String>;
-    fn flush(
-        &mut self,
-        memtable_entries: MemtableEntries<String, String>,
-    ) -> Result<(), io::Error>;
+    fn flush(&mut self, memtable_entries: MemtableEntries<String, String>)
+        -> Result<(), io::Error>;
     fn clear(&mut self) -> Result<(), io::Error>;
 }
 type DataGen = i32; // data generation
@@ -26,6 +24,7 @@ pub mod default {
         rich_file::{FileOption, RichFile},
         DataGen, Disktable, Offset,
     };
+    use crate::sst::memtable::{self, MemtableEntries};
     use io::{BufRead, BufReader, BufWriter, Read, Write};
     use regex::Regex;
     use std::{
@@ -35,7 +34,6 @@ pub mod default {
         ops::Deref,
         path::{Path, PathBuf},
     };
-    use crate::sst::memtable::{self, MemtableEntries};
 
     pub struct FileDisktable {
         dir_name: String,
@@ -151,28 +149,29 @@ pub mod default {
         fn find(&self, key: &String) -> Option<String> {
             self.flushing
                 .as_ref()
-                .and_then(|mem_entries| {
-                  match mem_entries.get(key) {
-                      memtable::GetResult::Found(value) => Some(value.to_string()),
-                      memtable::GetResult::Deleted => None,
-                      memtable::GetResult::NotFound => {
+                .and_then(|mem_entries| match mem_entries.get(key) {
+                    memtable::GetResult::Found(value) => Some(value.to_string()),
+                    memtable::GetResult::Deleted => None,
+                    memtable::GetResult::NotFound => {
                         self.find_index(key)
                             .unwrap()
                             .and_then(|(data_gen, offset)| match self.fetch(data_gen, offset) {
                                 Some((_key, _value)) if _key == *key => Some(_value),
                                 _ => None,
                             })
-                      }
-                  }
+                    }
                 })
         }
 
         fn flush(
             &mut self,
-            memtable_entries: MemtableEntries<String, String>
+            memtable_entries: MemtableEntries<String, String>,
         ) -> Result<(), io::Error> {
             self.flushing = Some(memtable_entries);
-            let MemtableEntries {entries, tombstones} = self.flushing.as_ref().unwrap();
+            let MemtableEntries {
+                entries,
+                tombstones,
+            } = self.flushing.as_ref().unwrap();
 
             let next_data_gen = self.data_gen + 1;
             let new_data_file = RichFile::open_file(&self.dir_name, "tmp_data", FileOption::New)?;

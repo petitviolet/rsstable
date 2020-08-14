@@ -16,13 +16,9 @@ pub struct DataEntry {
 
 impl DataFile {
     pub fn of(rich_file: RichFile) -> DataFile {
-      DataFile(rich_file)
+        DataFile(rich_file)
     }
-    pub fn read_entry(
-        &self,
-        data_gen: DataGen,
-        offset: Offset,
-    ) -> Option<DataEntry> {
+    pub fn read_entry(&self, data_gen: DataGen, offset: Offset) -> Option<DataEntry> {
         let mut data = &self.0.underlying;
         data.seek(SeekFrom::Start(offset)).unwrap();
         let mut key_len: [u8; 4] = [0; 4];

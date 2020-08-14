@@ -1,4 +1,9 @@
-use std::{io, path::{Path, PathBuf}, ops::Deref, fs::{OpenOptions, File}};
+use std::{
+    fs::{File, OpenOptions},
+    io,
+    ops::Deref,
+    path::{Path, PathBuf},
+};
 pub struct RichFile {
     pub underlying: File,
     pub dir: String,
