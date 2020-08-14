@@ -12,15 +12,18 @@ pub trait Disktable {
     ) -> Result<(), io::Error>;
     fn clear(&mut self) -> Result<(), io::Error>;
 }
+type DataGen = i32; // data generation
+type Offset = u64;
+
 struct DataLayout {
-    pub data_gen: i32,
-    pub offset: u64,
+    pub data_gen: DataGen,
+    pub offset: Offset,
     pub key_len: usize,
     pub value_len: usize,
 }
 pub mod default {
-    use super::{DataLayout, Disktable};
-    use io::{BufRead, BufWriter, Read, Write};
+    use super::{DataLayout, Disktable, DataGen, Offset};
+    use io::{BufRead, BufReader, BufWriter, Read, Write};
     use regex::Regex;
     use std::{
         collections::{BTreeMap, BTreeSet},
@@ -32,8 +35,8 @@ pub mod default {
 
     pub struct FileDisktable {
         dir_name: String,
-        data_gen: i32,
-        index: BTreeMap<String, (i32, u64)>,
+        data_gen: DataGen,
+        index: BTreeMap<String, (DataGen, Offset)>,
         flushing: Option<(Box<BTreeMap<String, String>>, Box<BTreeSet<String>>)>,
     }
 
@@ -93,32 +96,42 @@ pub mod default {
                 RichFile::open_file(&dir_name, Self::INDEX_FILE_NAME, FileOption::Append)?;
             let index = Self::load_index(&index_file);
             let data_gen = Self::get_latest_data_gen(&dir_name)?;
+            let flushing = None;
 
             Ok(Self {
                 data_gen,
                 dir_name,
                 index,
+                flushing,
             })
         }
 
-        fn get_latest_data_gen(dir_name: &String) -> io::Result<i32> {
+        fn get_data_gens(dir_name: &String) -> io::Result<Vec<DataGen>> {
             std::fs::read_dir(dir_name).map(|dir| {
-                dir.fold(0i32, |gen, file| {
-                    let file = file.unwrap();
-                    let file_name = file.file_name();
+                let mut list = dir.fold(vec![], |mut acc, entry| {
+                    let file_name = entry.unwrap().file_name();
                     let file_name = file_name.to_string_lossy();
                     match Regex::new(&format!("{}_(?P<gen>\\d+)", Self::DATA_FILE_NAME_PREFIX))
                         .unwrap()
                         .captures(&file_name)
                     {
-                        Some(cap) => std::cmp::max(gen, cap["gen"].parse::<_>().unwrap()),
-                        None => gen,
+                        Some(cap) => {
+                            acc.push(cap["gen"].parse::<DataGen>().unwrap());
+                            acc
+                        }
+                        None => acc,
                     }
-                })
+                });
+                list.sort();
+                list
             })
         }
 
-        fn data_file(&self, gen: i32) -> RichFile {
+        fn get_latest_data_gen(dir_name: &String) -> io::Result<DataGen> {
+            Self::get_data_gens(dir_name).map(|list| *list.last().unwrap_or(&0))
+        }
+
+        fn data_file(&self, gen: DataGen) -> RichFile {
             RichFile::open_file(
                 &self.dir_name,
                 format!("{}_{}", Self::DATA_FILE_NAME_PREFIX, gen),
@@ -131,7 +144,7 @@ pub mod default {
                 .expect("failed to open index file")
         }
 
-        fn load_index(index_file: &RichFile) -> BTreeMap<String, (i32, u64)> {
+        fn load_index(index_file: &RichFile) -> BTreeMap<String, (DataGen, Offset)> {
             let lines = io::BufReader::new(&index_file.underlying).lines();
             lines.fold(BTreeMap::new(), |mut map, line| match line {
                 Ok(line) => {
@@ -147,7 +160,8 @@ pub mod default {
                 }
             })
         }
-        fn fetch(&self, data_gen: i32, offset: u64) -> Option<(DataLayout, String, String)> {
+
+        fn fetch(&self, data_gen: DataGen, offset: Offset) -> Option<(DataLayout, String, String)> {
             let mut data = self.data_file(data_gen).underlying;
             data.seek(SeekFrom::Start(offset)).unwrap();
             let mut key_len: [u8; 4] = [0; 4];
@@ -206,6 +220,7 @@ pub mod default {
             ))
         }
     }
+
     struct ByteUtils;
     impl ByteUtils {
         fn as_usize(array: [u8; 4]) -> usize {
