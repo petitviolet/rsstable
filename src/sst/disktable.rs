@@ -1,5 +1,7 @@
 mod rich_file;
 mod byte_utils;
+mod data_file;
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     io,
@@ -17,14 +19,8 @@ pub trait Disktable {
 type DataGen = i32; // data generation
 type Offset = u64;
 
-struct DataLayout {
-    pub data_gen: DataGen,
-    pub offset: Offset,
-    pub key_len: usize,
-    pub value_len: usize,
-}
 pub mod default {
-    use super::{DataLayout, Disktable, DataGen, Offset, rich_file::{FileOption, RichFile}, byte_utils::ByteUtils};
+    use super::{Disktable, DataGen, Offset, rich_file::{FileOption, RichFile}, byte_utils::ByteUtils, data_file::*};
     use io::{BufRead, BufReader, BufWriter, Read, Write};
     use regex::Regex;
     use std::{
@@ -134,64 +130,9 @@ pub mod default {
             })
         }
 
-
-        fn fetch(&self, data_gen: DataGen, offset: Offset) -> Option<(DataLayout, String, String)> {
-            let mut data = self.data_file(data_gen).underlying;
-            data.seek(SeekFrom::Start(offset)).unwrap();
-            let mut key_len: [u8; 4] = [0; 4];
-            let res = data.read_exact(&mut key_len);
-            if res.is_err() {
-                return None;
-            }
-
-            let mut value_len: [u8; 4] = [0; 4];
-            let res = data.read_exact(&mut value_len);
-            if res.is_err() {
-                return None;
-            }
-
-            let key_len = ByteUtils::as_usize(key_len);
-            if key_len == 0 {
-                return None;
-            }
-            let mut key_data = vec![0u8; key_len];
-            let res = data.read_exact(&mut key_data);
-            if res.is_err() {
-                return None;
-            } else if key_data.len() != key_len {
-                panic!(
-                    "invalid key. offset: {}, key_len: {}, key_data: {:?}",
-                    offset, key_len, key_data
-                );
-            }
-
-            let value_len = ByteUtils::as_usize(value_len);
-            if value_len == 0 {
-                return None;
-            }
-            // let mut value_data = Vec::with_capacity(value_len); // doesn't work somehow
-            let mut value_data = vec![0u8; value_len];
-            let res = data.read_exact(&mut value_data);
-            if res.is_err() {
-                return None;
-            } else if value_data.len() != value_len {
-                panic!(
-                    "invalid value. offset: {}, lvalue_len: {}, value_data: {:?}",
-                    offset, value_len, value_data
-                );
-            }
-
-            let data_layout = DataLayout {
-                data_gen,
-                offset,
-                key_len,
-                value_len,
-            };
-            Some((
-                data_layout,
-                ByteUtils::as_string(&key_data),
-                ByteUtils::as_string(&value_data),
-            ))
+        fn fetch(&self, data_gen: DataGen, offset: Offset) -> Option<(String, String)> {
+          let entry = DataFile::of(self.data_file(data_gen)).read_entry(data_gen, offset);
+          entry.map(|entry| (entry.key, entry.value))
         }
     } 
 
@@ -210,7 +151,7 @@ pub mod default {
                     self.find_index(key).unwrap()
                     .and_then(|(data_gen, offset)| {
                         match self.fetch(data_gen, offset) {
-                            Some((_, _key, _value)) if _key == *key => Some(_value),
+                            Some((_key, _value)) if _key == *key => Some(_value),
                             _ => None,
                         }
                     })
