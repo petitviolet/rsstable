@@ -18,6 +18,11 @@ impl DataFile {
     pub fn of(rich_file: RichFile) -> DataFile {
         DataFile(rich_file)
     }
+    /*
+    Data Layout:
+    [key length][value length][ key data  ][value data ]\0
+    <--4 byte--><--4 byte----><--key_len--><-value_len->
+    */
     pub fn read_entry(&self, data_gen: DataGen, offset: Offset) -> Option<DataEntry> {
         let mut data = &self.0.underlying;
         data.seek(SeekFrom::Start(offset)).unwrap();
