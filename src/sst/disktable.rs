@@ -282,29 +282,6 @@ pub mod default {
             let (entries, tombstones) = self.flushing.as_ref().unwrap();
 
             let next_data_gen = self.data_gen + 1;
-            // let mut new_entries = BTreeMap::new();
-            // entries.iter().for_each(|(key, value)| {
-            //     if tombstones.get(key).is_some() {
-            //         return;
-            //     }
-
-            //     let (data_gen, value) = match self.index.get(key) {
-            //         Some((data_gen, offset)) => match self.fetch(*data_gen, *offset) {
-            //             Some((_, _, old_value)) => match new_value {
-            //                 Some(new_value) => (next_data_gen, new_value),
-            //                 None => (*data_gen, old_value),
-            //             },
-            //             None => {
-            //                 unreachable!("invalid key({}). offset({})", key, offset);
-            //             }
-            //         },
-            //         None => new_value
-            //             .map(|v| (next_data_gen, v))
-            //             .unwrap_or_else(|| panic!("invalid key({})", key)),
-            //     };
-            //     new_entries.insert(key, (data_gen, value));
-            // });
-
             let new_data_file = RichFile::open_file(&self.dir_name, "tmp_data", FileOption::New)?;
             let mut data_writer = BufWriter::new(&new_data_file.underlying);
             let mut offset = 0;
