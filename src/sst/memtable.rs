@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    io,
+    io, hash::Hash,
 };
 
 pub trait Memtable {
@@ -26,6 +26,15 @@ pub struct MemtableOnFlush<Key, Value> {
 pub struct MemtableEntries<Key, Value> {
   pub entries: Box<BTreeMap<Key, Value>>, 
   pub tombstones: Box<BTreeSet<Key>>,
+}
+impl<K: Hash + Eq + Ord, V> MemtableEntries<K, V> {
+  pub fn get(&self, key: &K) -> GetResult<&V> {
+      if self.tombstones.get(key).is_none() {
+          self.entries.get(key).map(GetResult::Found).unwrap_or(GetResult::NotFound)
+      } else {
+          GetResult::Deleted
+      }
+  }
 }
 
 impl<Key, Value> MemtableOnFlush<Key, Value> {

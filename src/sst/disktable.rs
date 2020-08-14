@@ -35,7 +35,7 @@ pub mod default {
         ops::Deref,
         path::{Path, PathBuf},
     };
-    use crate::sst::memtable::MemtableEntries;
+    use crate::sst::memtable::{self, MemtableEntries};
 
     pub struct FileDisktable {
         dir_name: String,
@@ -119,51 +119,51 @@ pub mod default {
             })
         }
 
-        fn find_index(&self, key: &String) -> io::Result<Option<(DataGen, Offset)>> { 
-          Self::get_data_gens(&self.dir_name)
-            .map(|gens| {
-              gens.iter().find_map(|gen: &DataGen| {
-                io::BufReader::new(&self.index_file(*gen).underlying).lines().find_map(|line| { 
-                  match line {
-                    Ok(line) => {
-                        let res: Vec<_> = line.split(Self::INDEX_DELIMITER).collect();
-                        if key == res[0] {
-                          Some((*gen, res[1].parse().unwrap()))
-                        } else { None }
-                    }
-                    Err(err) => {
-                        panic!("failed to load line. err: {:?}", err);
-                    }
-                  }
+        fn find_index(&self, key: &String) -> io::Result<Option<(DataGen, Offset)>> {
+            Self::get_data_gens(&self.dir_name).map(|gens| {
+                gens.iter().find_map(|gen: &DataGen| {
+                    io::BufReader::new(&self.index_file(*gen).underlying)
+                        .lines()
+                        .find_map(|line| match line {
+                            Ok(line) => {
+                                let res: Vec<_> = line.split(Self::INDEX_DELIMITER).collect();
+                                if key == res[0] {
+                                    Some((*gen, res[1].parse().unwrap()))
+                                } else {
+                                    None
+                                }
+                            }
+                            Err(err) => {
+                                panic!("failed to load line. err: {:?}", err);
+                            }
+                        })
                 })
-              })
             })
         }
 
         fn fetch(&self, data_gen: DataGen, offset: Offset) -> Option<(String, String)> {
-          let entry = DataFile::of(self.data_file(data_gen)).read_entry(data_gen, offset);
-          entry.map(|entry| (entry.key, entry.value))
+            let entry = DataFile::of(self.data_file(data_gen)).read_entry(data_gen, offset);
+            entry.map(|entry| (entry.key, entry.value))
         }
-    } 
+    }
 
     impl Disktable for FileDisktable {
         fn find(&self, key: &String) -> Option<String> {
             self.flushing
                 .as_ref()
-                .and_then(|MemtableEntries { entries, tombstones }| {
-                    if tombstones.get(key).is_none() {
-                        entries.get(key).map(|s| s.to_string())
-                    } else {
-                        None
-                    }
-                })
-                .or_else(|| {
-                    self.find_index(key)
-                        .unwrap()
-                        .and_then(|(data_gen, offset)| match self.fetch(data_gen, offset) {
-                            Some((_key, _value)) if _key == *key => Some(_value),
-                            _ => None,
-                        })
+                .and_then(|mem_entries| {
+                  match mem_entries.get(key) {
+                      memtable::GetResult::Found(value) => Some(value.to_string()),
+                      memtable::GetResult::Deleted => None,
+                      memtable::GetResult::NotFound => {
+                        self.find_index(key)
+                            .unwrap()
+                            .and_then(|(data_gen, offset)| match self.fetch(data_gen, offset) {
+                                Some((_key, _value)) if _key == *key => Some(_value),
+                                _ => None,
+                            })
+                      }
+                  }
                 })
         }
 
@@ -207,10 +207,7 @@ pub mod default {
             let new_index_file = RichFile::open_file(&self.dir_name, "tmp_index", FileOption::New)?;
             let mut index_writer = BufWriter::new(&new_index_file.underlying);
             new_index.iter().for_each(|(key, offset)| {
-                let line = format!(
-                    "{}{}{}\n",
-                    key, Self::INDEX_DELIMITER, offset
-                );
+                let line = format!("{}{}{}\n", key, Self::INDEX_DELIMITER, offset);
                 index_writer
                     .write(line.as_bytes())
                     .expect(&format!("failed to write a line({})", line));
@@ -228,7 +225,8 @@ pub mod default {
         fn clear(&mut self) -> Result<(), io::Error> {
             (0..=self.data_gen).for_each(|gen| {
                 std::fs::remove_file(self.data_file(gen).path()).expect("failed to remove file");
-                std::fs::remove_file(self.index_file(gen).path()).expect("failed to remove index file");
+                std::fs::remove_file(self.index_file(gen).path())
+                    .expect("failed to remove index file");
             });
             self.data_gen = 0;
             Ok(())
