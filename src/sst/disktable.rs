@@ -1,18 +1,18 @@
-mod rich_file;
 mod byte_utils;
 mod data_file;
+mod rich_file;
 
 use std::{
     collections::{BTreeMap, BTreeSet},
     io,
 };
+use super::memtable::MemtableEntries;
 
 pub trait Disktable {
     fn find(&self, key: &String) -> Option<String>;
     fn flush(
         &mut self,
-        entries: Box<BTreeMap<String, String>>,
-        tombstones: Box<BTreeSet<String>>,
+        memtable_entries: MemtableEntries<String, String>,
     ) -> Result<(), io::Error>;
     fn clear(&mut self) -> Result<(), io::Error>;
 }
@@ -20,7 +20,12 @@ type DataGen = i32; // data generation
 type Offset = u64;
 
 pub mod default {
-    use super::{Disktable, DataGen, Offset, rich_file::{FileOption, RichFile}, byte_utils::ByteUtils, data_file::*};
+    use super::{
+        byte_utils::ByteUtils,
+        data_file::*,
+        rich_file::{FileOption, RichFile},
+        DataGen, Disktable, Offset,
+    };
     use io::{BufRead, BufReader, BufWriter, Read, Write};
     use regex::Regex;
     use std::{
@@ -30,11 +35,12 @@ pub mod default {
         ops::Deref,
         path::{Path, PathBuf},
     };
+    use crate::sst::memtable::MemtableEntries;
 
     pub struct FileDisktable {
         dir_name: String,
         data_gen: DataGen,
-        flushing: Option<(Box<BTreeMap<String, String>>, Box<BTreeSet<String>>)>,
+        flushing: Option<MemtableEntries<String, String>>,
     }
 
     impl FileDisktable {
@@ -88,8 +94,12 @@ pub mod default {
             .expect("failed to open data file")
         }
         fn index_file(&self, data_gen: DataGen) -> RichFile {
-            RichFile::open_file(&self.dir_name, format!("{}_{}", Self::INDEX_FILE_NAME, data_gen), FileOption::Append)
-                .expect("failed to open index file")
+            RichFile::open_file(
+                &self.dir_name,
+                format!("{}_{}", Self::INDEX_FILE_NAME, data_gen),
+                FileOption::Append,
+            )
+            .expect("failed to open index file")
         }
 
         fn load_index(index_file: &RichFile) -> BTreeMap<String, (DataGen, Offset)> {
@@ -140,7 +150,7 @@ pub mod default {
         fn find(&self, key: &String) -> Option<String> {
             self.flushing
                 .as_ref()
-                .and_then(|(entries, tombstones)| {
+                .and_then(|MemtableEntries { entries, tombstones }| {
                     if tombstones.get(key).is_none() {
                         entries.get(key).map(|s| s.to_string())
                     } else {
@@ -148,23 +158,21 @@ pub mod default {
                     }
                 })
                 .or_else(|| {
-                    self.find_index(key).unwrap()
-                    .and_then(|(data_gen, offset)| {
-                        match self.fetch(data_gen, offset) {
+                    self.find_index(key)
+                        .unwrap()
+                        .and_then(|(data_gen, offset)| match self.fetch(data_gen, offset) {
                             Some((_key, _value)) if _key == *key => Some(_value),
                             _ => None,
-                        }
-                    })
+                        })
                 })
         }
 
         fn flush(
             &mut self,
-            entries: Box<BTreeMap<String, String>>,
-            tombstones: Box<BTreeSet<String>>,
+            memtable_entries: MemtableEntries<String, String>
         ) -> Result<(), io::Error> {
-            self.flushing = Some((entries, tombstones));
-            let (entries, tombstones) = self.flushing.as_ref().unwrap();
+            self.flushing = Some(memtable_entries);
+            let MemtableEntries {entries, tombstones} = self.flushing.as_ref().unwrap();
 
             let next_data_gen = self.data_gen + 1;
             let new_data_file = RichFile::open_file(&self.dir_name, "tmp_data", FileOption::New)?;

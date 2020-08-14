@@ -21,13 +21,17 @@ pub enum GetResult<T> {
   NotFound,
 }
 pub struct MemtableOnFlush<Key, Value> {
-    flushed: Option<(Box<BTreeMap<Key, Value>>, Box<BTreeSet<Key>>)>,
+    flushed: Option<MemtableEntries<Key, Value>>,
+}
+pub struct MemtableEntries<Key, Value> {
+  pub entries: Box<BTreeMap<Key, Value>>, 
+  pub tombstones: Box<BTreeSet<Key>>,
 }
 
 impl<Key, Value> MemtableOnFlush<Key, Value> {
     pub fn on_flush(
         self,
-        f: impl FnOnce((Box<BTreeMap<Key, Value>>, Box<BTreeSet<Key>>)) -> io::Result<()>,
+        f: impl FnOnce(MemtableEntries<Key, Value>) -> io::Result<()>,
     ) -> io::Result<()> {
         match self.flushed {
             Some(flushed) => f(flushed),
@@ -37,7 +41,7 @@ impl<Key, Value> MemtableOnFlush<Key, Value> {
 }
 
 pub mod default {
-    use super::{Memtable, MemtableOnFlush, GetResult};
+    use super::{Memtable, MemtableOnFlush, GetResult, MemtableEntries};
     use std::{
         collections::{BTreeMap, BTreeSet},
         hash::Hash,
@@ -75,10 +79,13 @@ pub mod default {
             }
         }
 
-        fn flush(&mut self) -> (Box<BTreeMap<K, V>>, Box<BTreeSet<K>>) {
+        fn flush(&mut self) -> MemtableEntries<K, V> {
             let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
             let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
-            (Box::new(contents), Box::new(deleted))
+            MemtableEntries{ 
+              entries: Box::new(contents), 
+              tombstones: Box::new(deleted),
+            }
         }
     }
     impl<K: Hash + Eq + Ord, V> Memtable for HashMemtable<K, V> {

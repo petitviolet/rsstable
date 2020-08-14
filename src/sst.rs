@@ -6,6 +6,7 @@ use std::{
     io,
     ops::Deref,
 };
+use memtable::MemtableEntries;
 mod disktable;
 mod memtable;
 
@@ -39,13 +40,12 @@ impl SSTable {
         let key = key.into();
         let value = value.into();
         self.memtable.set(key, value).on_flush(
-            |args: (Box<BTreeMap<String, String>>, Box<BTreeSet<String>>)| {
-                let (memtable, tombstones) = args;
+            |mem| {
                 println!(
                     "flush! memtable: {:?}, tombstones: {:?}",
-                    memtable, tombstones
+                    mem.entries, mem.tombstones
                 );
-                self.disktable.flush(memtable, tombstones)
+                self.disktable.flush(mem)
             },
         )
     }
