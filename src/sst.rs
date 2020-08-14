@@ -23,10 +23,13 @@ impl SSTable {
     }
     pub fn get(&self, key: impl Into<String>) -> Option<String> {
         let key = key.into();
-        self.memtable
-            .get(&key)
-            .map(|res| res.to_string())
-            .or_else(|| self.disktable.find(&key))
+        match self.memtable.get(&key) {
+          memtable::GetResult::Found(value) => Some(value.to_string()),
+          memtable::GetResult::Deleted => None,
+          memtable::GetResult::NotFound => {
+            self.disktable.find(&key)
+          }
+        }
     }
     pub fn insert(
         &mut self,
@@ -45,6 +48,10 @@ impl SSTable {
                 self.disktable.flush(memtable, tombstones)
             },
         )
+    }
+
+    pub fn delete(&mut self, key: impl Into<String>) -> () {
+      self.memtable.delete(key.into());
     }
 
     pub fn clear(&mut self) -> Result<(), io::Error> {
@@ -70,6 +77,11 @@ mod tests {
         });
         (1..=10).for_each(|i| {
           assert_eq!(sst.get(key(i)), Some(value(i)));
+          sst.delete(key(i));
+          assert_eq!(sst.get(key(i)), None);
+        });
+        (1..=10).for_each(|i| {
+          assert_eq!(sst.get(key(i)), None);
         });
     }
 }

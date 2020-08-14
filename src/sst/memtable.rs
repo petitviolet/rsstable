@@ -6,7 +6,7 @@ use std::{
 pub trait Memtable {
     type Key;
     type Value;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value>;
+    fn get(&self, key: &Self::Key) -> GetResult<&Self::Value>;
     fn set(
         &mut self,
         key: Self::Key,
@@ -14,6 +14,11 @@ pub trait Memtable {
     ) -> MemtableOnFlush<Self::Key, Self::Value>;
     fn delete(&mut self, key: Self::Key) -> ();
     fn clear(&mut self) -> ();
+}
+pub enum GetResult<T> {
+  Found(T),
+  Deleted,
+  NotFound,
 }
 pub struct MemtableOnFlush<Key, Value> {
     flushed: Option<(Box<BTreeMap<Key, Value>>, Box<BTreeSet<Key>>)>,
@@ -32,7 +37,7 @@ impl<Key, Value> MemtableOnFlush<Key, Value> {
 }
 
 pub mod default {
-    use super::{Memtable, MemtableOnFlush};
+    use super::{Memtable, MemtableOnFlush, GetResult};
     use std::{
         collections::{BTreeMap, BTreeSet},
         hash::Hash,
@@ -80,8 +85,10 @@ pub mod default {
         type Key = K;
         type Value = V;
 
-        fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-            self.with_check_tombstone(key, || None, || self.underlying.get(&key))
+        fn get(&self, key: &Self::Key) -> GetResult<&Self::Value> {
+            self.with_check_tombstone(key, 
+              || GetResult::Deleted,
+              || self.underlying.get(&key).map(GetResult::Found).unwrap_or(GetResult::NotFound))
         }
 
         fn set(
