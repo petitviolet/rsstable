@@ -1,4 +1,5 @@
 mod rich_file;
+mod byte_utils;
 use std::{
     collections::{BTreeMap, BTreeSet},
     io,
@@ -23,7 +24,7 @@ struct DataLayout {
     pub value_len: usize,
 }
 pub mod default {
-    use super::{DataLayout, Disktable, DataGen, Offset, rich_file::{FileOption, RichFile}};
+    use super::{DataLayout, Disktable, DataGen, Offset, rich_file::{FileOption, RichFile}, byte_utils::ByteUtils};
     use io::{BufRead, BufReader, BufWriter, Read, Write};
     use regex::Regex;
     use std::{
@@ -194,19 +195,6 @@ pub mod default {
         }
     } 
 
-    struct ByteUtils;
-    impl ByteUtils {
-        fn as_usize(array: [u8; 4]) -> usize {
-            u32::from_le_bytes(array) as usize
-        }
-        fn as_string(array: &[u8]) -> String {
-            std::str::from_utf8(array).unwrap().to_string()
-        }
-        fn from_usize(n: usize) -> [u8; 4] {
-            (n as u32).to_le_bytes()
-        }
-    }
-
     impl Disktable for FileDisktable {
         fn find(&self, key: &String) -> Option<String> {
             self.flushing
@@ -287,6 +275,7 @@ pub mod default {
             self.flushing = None;
             Ok(())
         }
+
         fn clear(&mut self) -> Result<(), io::Error> {
             (0..=self.data_gen).for_each(|gen| {
                 std::fs::remove_file(self.data_file(gen).path()).expect("failed to remove file");
