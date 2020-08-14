@@ -1,3 +1,4 @@
+mod rich_file;
 use std::{
     collections::{BTreeMap, BTreeSet},
     io,
@@ -22,7 +23,7 @@ struct DataLayout {
     pub value_len: usize,
 }
 pub mod default {
-    use super::{DataLayout, Disktable, DataGen, Offset};
+    use super::{DataLayout, Disktable, DataGen, Offset, rich_file::{FileOption, RichFile}};
     use io::{BufRead, BufReader, BufWriter, Read, Write};
     use regex::Regex;
     use std::{
@@ -37,51 +38,6 @@ pub mod default {
         dir_name: String,
         data_gen: DataGen,
         flushing: Option<(Box<BTreeMap<String, String>>, Box<BTreeSet<String>>)>,
-    }
-
-    struct RichFile {
-        underlying: File,
-        dir: String,
-        name: String,
-    }
-    #[derive(Debug)]
-    enum FileOption {
-        New,
-        Append,
-    }
-    impl FileOption {
-        fn open(&self, path: &PathBuf) -> Result<File, io::Error> {
-            let mut option = OpenOptions::new();
-            match self {
-                FileOption::New => option.read(true).write(true).truncate(true).create(true),
-                FileOption::Append => option.read(true).append(true).truncate(false).create(true),
-            }
-            .open(path)
-        }
-    }
-    impl RichFile {
-        fn open_file(
-            dir_name: impl Into<String>,
-            file_name: impl Into<String>,
-            option: FileOption,
-        ) -> Result<RichFile, io::Error> {
-            let dir_name = dir_name.into();
-            let dir = Path::new(&dir_name);
-            let file_name_s: String = file_name.into();
-            let path = dir.join(&file_name_s);
-            let file = option
-                .open(&path)
-                .expect(format!("failed to open file({:?}), option: {:?}", &path, option).deref());
-
-            Ok(RichFile {
-                underlying: file,
-                dir: dir_name,
-                name: file_name_s,
-            })
-        }
-        fn path(&self) -> PathBuf {
-            Path::new(&self.dir).join(&self.name)
-        }
     }
 
     impl FileDisktable {
@@ -236,7 +192,7 @@ pub mod default {
                 ByteUtils::as_string(&value_data),
             ))
         }
-    }
+    } 
 
     struct ByteUtils;
     impl ByteUtils {
