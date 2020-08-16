@@ -54,7 +54,7 @@ impl<Key, Value> MemtableOnFlush<Key, Value> {
     }
 }
 
-pub mod default {
+pub(crate) mod default {
     use super::*;
     use std::{
         collections::{BTreeMap, BTreeSet},

@@ -1,4 +1,4 @@
-pub struct ByteUtils;
+pub(crate) struct ByteUtils;
 impl ByteUtils {
     pub fn as_usize(array: [u8; 4]) -> usize {
         u32::from_le_bytes(array) as usize

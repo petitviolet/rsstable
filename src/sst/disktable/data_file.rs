@@ -3,8 +3,8 @@ use byte_utils::*;
 use io::{Read, Seek, SeekFrom};
 use rich_file::*;
 
-pub struct DataFile(RichFile);
-pub struct DataEntry {
+pub(crate) struct DataFile(RichFile);
+pub(crate) struct DataEntry {
     pub data_gen: DataGen,
     pub offset: Offset,
     pub key_len: usize,

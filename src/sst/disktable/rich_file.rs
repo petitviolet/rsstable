@@ -4,14 +4,14 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
 };
-pub struct RichFile {
+pub(crate) struct RichFile {
     pub underlying: File,
     pub dir: String,
     pub name: String,
 }
 
 #[derive(Debug)]
-pub enum FileOption {
+pub(crate) enum FileOption {
     New,
     Append,
 }

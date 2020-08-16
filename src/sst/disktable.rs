@@ -15,7 +15,7 @@ pub trait Disktable {
 type DataGen = i32; // data generation
 type Offset = u64;
 
-pub mod default {
+pub(crate) mod default {
     use super::{
         byte_utils::*,
         data_file::*,

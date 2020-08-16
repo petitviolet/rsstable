@@ -4,7 +4,7 @@ use io::{BufRead, BufWriter, Read, Seek, SeekFrom, Write};
 use rich_file::*;
 use std::{fmt::Debug, io::BufReader};
 
-pub struct IndexFile {
+pub(crate) struct IndexFile {
     data_gen: DataGen,
     file: RichFile,
     skip_index_file: RichFile,
@@ -21,7 +21,7 @@ impl Debug for IndexFile {
         )
     }
 }
-pub struct IndexEntry {
+pub(crate) struct IndexEntry {
     pub key: String,
     pub data_gen: DataGen,
     pub offset: Offset,
