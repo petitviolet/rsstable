@@ -78,23 +78,3 @@ impl DataFile {
         })
     }
 }
-
-// impl RichFile {
-//     fn data_iter(self, offset: usize) -> DataFileIterator {
-//         let reader = BufReader::new(self.underlying);
-//         DataFileIterator {
-//             reader,
-//             pos: offset,
-//         }
-//     }
-// }
-// pub struct DataFileIterator {
-//     reader: BufReader<File>,
-//     pos: usize,
-// }
-// impl Iterator for DataFileIterator {
-//     type Item = (String, String);
-//     fn next(&mut self) -> Option<Self::Item> {
-//         todo!()
-//     }
-// }

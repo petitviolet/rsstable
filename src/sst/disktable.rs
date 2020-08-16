@@ -98,21 +98,6 @@ pub mod default {
             let entry = DataFile::of(self.data_file(data_gen)).read_entry(data_gen, offset);
             entry.map(|entry| (entry.key, entry.value))
         }
-
-        //   fn compaction(&self) -> io::Result<()> {
-        //       let _iter = Self::get_data_gens(&self.dir_name)?;
-        //     let iter = _iter.chunks_exact(2).peekable();
-        //     let mut new_index: BTreeMap<String, String> = BTreeMap::new();
-        //     iter.for_each(|gens| {
-        //         if gens.len() == 1 {
-        //             return;
-        //         };
-        //         let gen = gens[0];
-        //         let data_file = self.data_file(gen);
-        //         data_file.data_iter().for_each(|(key, value)| {});
-        //     });
-        //     Ok(())
-        // }
     }
 
     impl Disktable for FileDisktable {
