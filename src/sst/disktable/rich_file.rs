@@ -9,6 +9,7 @@ pub struct RichFile {
     pub dir: String,
     pub name: String,
 }
+
 #[derive(Debug)]
 pub enum FileOption {
     New,

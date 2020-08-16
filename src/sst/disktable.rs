@@ -4,10 +4,7 @@ mod index_file;
 mod rich_file;
 
 use super::memtable::MemtableEntries;
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    io,
-};
+use std::{collections::BTreeMap, io};
 
 pub trait Disktable {
     fn find(&self, key: &String) -> Option<String>;
@@ -120,27 +117,24 @@ pub mod default {
 
     impl Disktable for FileDisktable {
         fn find(&self, key: &String) -> Option<String> {
-          let find_from_disk = || {
-            (0..=self.data_gen).rev().find_map(|data_gen| {
-              self
-                          .index_file(data_gen)
-                          .find_index(key)
-                          .and_then(|index_entry| {
-                              self.fetch(index_entry.data_gen, index_entry.offset)
-                                  .filter(|(_key, _)| _key == key)
-                                  .map(|(_, value)| value)
-                          })
-              }) 
-          };
+            let find_from_disk = || {
+                (0..=self.data_gen).rev().find_map(|data_gen| {
+                    self.index_file(data_gen)
+                        .find_index(key)
+                        .and_then(|index_entry| {
+                            self.fetch(index_entry.data_gen, index_entry.offset)
+                                .filter(|(_key, _)| _key == key)
+                                .map(|(_, value)| value)
+                        })
+                })
+            };
             match self.flushing.as_ref() {
-              Some(mem_entries) => {
-                 match mem_entries.get(key) {
+                Some(mem_entries) => match mem_entries.get(key) {
                     memtable::GetResult::Found(value) => Some(value.to_string()),
                     memtable::GetResult::Deleted => None,
                     memtable::GetResult::NotFound => find_from_disk(),
-                }
-              },
-              None => find_from_disk()
+                },
+                None => find_from_disk(),
             }
         }
 

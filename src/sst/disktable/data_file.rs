@@ -2,7 +2,6 @@ use super::*;
 use byte_utils::*;
 use io::{Read, Seek, SeekFrom};
 use rich_file::*;
-use std::io::BufReader;
 
 pub struct DataFile(RichFile);
 pub struct DataEntry {

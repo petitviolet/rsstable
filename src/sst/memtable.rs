@@ -28,6 +28,7 @@ pub struct MemtableEntries<Key, Value> {
     pub entries: Box<BTreeMap<Key, Value>>,
     pub tombstones: Box<BTreeSet<Key>>,
 }
+
 impl<K: Hash + Eq + Ord, V> MemtableEntries<K, V> {
     pub fn get(&self, key: &K) -> GetResult<&V> {
         if self.tombstones.get(key).is_none() {
