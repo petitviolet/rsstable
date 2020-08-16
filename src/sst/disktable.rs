@@ -17,21 +17,18 @@ type Offset = u64;
 
 pub mod default {
     use super::{
-        byte_utils::ByteUtils,
+        byte_utils::*,
         data_file::*,
         index_file::*,
-        rich_file::{FileOption, RichFile},
-        DataGen, Disktable, Offset,
+        rich_file::*,
+        *
     };
     use crate::sst::memtable::{self, MemtableEntries};
-    use io::{BufRead, BufReader, BufWriter, Read, Write};
+    use io::{BufWriter, Write};
     use regex::Regex;
     use std::{
-        collections::{BTreeMap, BTreeSet},
-        fs::{File, OpenOptions},
-        io::{self, Seek, SeekFrom},
-        ops::Deref,
-        path::{Path, PathBuf},
+        collections::BTreeMap,
+        io,
     };
 
     pub struct FileDisktable {
@@ -130,7 +127,7 @@ pub mod default {
             self.flushing = Some(memtable_entries);
             let MemtableEntries {
                 entries,
-                tombstones,
+                tombstones, // TODO: persist records marked as deleted
             } = self.flushing.as_ref().unwrap();
 
             let next_data_gen = self.data_gen + 1;

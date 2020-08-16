@@ -55,11 +55,10 @@ impl<Key, Value> MemtableOnFlush<Key, Value> {
 }
 
 pub mod default {
-    use super::{GetResult, Memtable, MemtableEntries, MemtableOnFlush};
+    use super::*;
     use std::{
         collections::{BTreeMap, BTreeSet},
         hash::Hash,
-        io,
     };
 
     pub struct HashMemtable<K, V> {
