@@ -123,37 +123,10 @@ pub(crate) mod default {
             } = self.flushing.as_ref().unwrap();
 
             let next_data_gen = self.data_gen + 1;
-            let new_data_file = RichFile::open_file(&self.dir_name, "tmp_data", FileOption::New)?;
-            let mut data_writer = BufWriter::new(&new_data_file.underlying);
-            let mut offset: Offset = 0;
-
-            let mut new_index = BTreeMap::new();
-            entries.iter().for_each(|(key, value)| {
-                let key_bytes = key.as_bytes();
-                let value_bytes = value.as_bytes();
-                let written_bytes = data_writer
-                    .write(&ByteUtils::from_usize(key_bytes.len()))
-                    .and_then(|size1| {
-                        data_writer
-                            .write(&ByteUtils::from_usize(value_bytes.len()))
-                            .and_then(|size2| {
-                                data_writer.write(key_bytes).and_then(|size3| {
-                                    data_writer.write(value_bytes).and_then(|size4| {
-                                        data_writer
-                                            .write(b"\0")
-                                            .map(|size5| size1 + size2 + size3 + size4 + size5)
-                                    })
-                                })
-                            })
-                    })
-                    .expect("failed to to write bytes into BufWriter");
-                new_index.insert(key, offset);
-                offset += written_bytes as u64;
-            });
-            data_writer.flush().expect("failed to write data");
+            let new_data_file = DataFile::of(&self.dir_name, next_data_gen);
+            let new_index = new_data_file.create(self.flushing.as_ref().unwrap())?;
             let new_index_file = IndexFile::of(next_data_gen, &self.dir_name);
             new_index_file.create_index(&new_index)?;
-            std::fs::rename(new_data_file.path(), self.data_file(next_data_gen).file.path())?;
 
             println!("entries: {:?}", entries);
             self.data_gen = next_data_gen;
