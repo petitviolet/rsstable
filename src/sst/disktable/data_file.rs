@@ -1,11 +1,11 @@
 use super::*;
 use byte_utils::*;
-use io::{Read, Seek, SeekFrom, BufWriter, Write};
+use io::{BufWriter, Read, Seek, SeekFrom, Write};
 use rich_file::*;
 
 pub(crate) struct DataFile {
-  pub data_gen: DataGen,
-  pub file: RichFile,
+    pub data_gen: DataGen,
+    pub file: RichFile,
 }
 pub(crate) struct DataEntry {
     pub data_gen: DataGen,
@@ -24,12 +24,10 @@ impl DataFile {
             dir_name,
             format!("{}_{}", DataFile::FILE_NAME_PREFIX, data_gen),
             FileOption::Append,
-        ).expect("failed to open data file");
+        )
+        .expect("failed to open data file");
 
-        DataFile {
-          data_gen,
-          file,
-        }
+        DataFile { data_gen, file }
     }
     /*
     Data Layout:
@@ -92,42 +90,45 @@ impl DataFile {
         })
     }
 
-    pub fn create<'a>(&self, memtable_entries: &'a MemtableEntries<String, String>) -> io::Result<BTreeMap<&'a String, Offset>> {
-      let MemtableEntries {
-        entries,
-        tombstones, // TODO: persist records marked as deleted
-      } = memtable_entries;
+    pub fn create<'a>(
+        &self,
+        memtable_entries: &'a MemtableEntries<String, String>,
+    ) -> io::Result<BTreeMap<&'a String, Offset>> {
+        let MemtableEntries {
+            entries,
+            tombstones, // TODO: persist records marked as deleted
+        } = memtable_entries;
 
-      let new_data_file = RichFile::open_file(&self.file.dir, "tmp_data", FileOption::New)?;
-      let mut data_writer = BufWriter::new(&new_data_file.underlying);
-      let mut offset: Offset = 0;
+        let new_data_file = RichFile::open_file(&self.file.dir, "tmp_data", FileOption::New)?;
+        let mut data_writer = BufWriter::new(&new_data_file.underlying);
+        let mut offset: Offset = 0;
 
-      let mut new_index = BTreeMap::new();
-      entries.iter().for_each(|(key, value)| {
-          let key_bytes = key.as_bytes();
-          let value_bytes = value.as_bytes();
-          let written_bytes = data_writer
-              .write(&ByteUtils::from_usize(key_bytes.len()))
-              .and_then(|size1| {
-                  data_writer
-                      .write(&ByteUtils::from_usize(value_bytes.len()))
-                      .and_then(|size2| {
-                          data_writer.write(key_bytes).and_then(|size3| {
-                              data_writer.write(value_bytes).and_then(|size4| {
-                                  data_writer
-                                      .write(b"\0")
-                                      .map(|size5| size1 + size2 + size3 + size4 + size5)
-                              })
-                          })
-                      })
-              })
-              .expect("failed to to write bytes into BufWriter");
-          new_index.insert(key, offset);
-          offset += written_bytes as u64;
-      });
-      data_writer.flush().expect("failed to write data");
-      std::fs::rename(new_data_file.path(), self.file.path())?;
-      return Ok(new_index);
+        let mut new_index = BTreeMap::new();
+        entries.iter().for_each(|(key, value)| {
+            let key_bytes = key.as_bytes();
+            let value_bytes = value.as_bytes();
+            let written_bytes = data_writer
+                .write(&ByteUtils::from_usize(key_bytes.len()))
+                .and_then(|size1| {
+                    data_writer
+                        .write(&ByteUtils::from_usize(value_bytes.len()))
+                        .and_then(|size2| {
+                            data_writer.write(key_bytes).and_then(|size3| {
+                                data_writer.write(value_bytes).and_then(|size4| {
+                                    data_writer
+                                        .write(b"\0")
+                                        .map(|size5| size1 + size2 + size3 + size4 + size5)
+                                })
+                            })
+                        })
+                })
+                .expect("failed to to write bytes into BufWriter");
+            new_index.insert(key, offset);
+            offset += written_bytes as u64;
+        });
+        data_writer.flush().expect("failed to write data");
+        std::fs::rename(new_data_file.path(), self.file.path())?;
+        return Ok(new_index);
     }
 
     pub fn clear(dir: &str, data_gen: DataGen) -> io::Result<()> {

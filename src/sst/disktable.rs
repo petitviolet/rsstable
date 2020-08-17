@@ -16,20 +16,11 @@ type DataGen = i32; // data generation
 type Offset = u64;
 
 pub(crate) mod default {
-    use super::{
-        byte_utils::*,
-        data_file::*,
-        index_file::*,
-        rich_file::*,
-        *
-    };
+    use super::{byte_utils::*, data_file::*, index_file::*, rich_file::*, *};
     use crate::sst::memtable::{self, MemtableEntries};
     use io::{BufWriter, Write};
     use regex::Regex;
-    use std::{
-        collections::BTreeMap,
-        io,
-    };
+    use std::{collections::BTreeMap, io};
 
     pub struct FileDisktable {
         dir_name: String,
@@ -76,7 +67,7 @@ pub(crate) mod default {
         }
 
         fn data_file(&self, gen: DataGen) -> DataFile {
-          DataFile::of(&self.dir_name, gen)
+            DataFile::of(&self.dir_name, gen)
         }
 
         fn index_file(&self, data_gen: DataGen) -> IndexFile {

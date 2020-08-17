@@ -1,9 +1,7 @@
 //! SSTable(Sorted String Table) in Rust
 //! Basically, this is a Key-Value store on top of local file storage.
 
-use std::{
-    io,
-};
+use std::io;
 mod disktable;
 mod memtable;
 
