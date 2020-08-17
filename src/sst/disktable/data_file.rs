@@ -3,7 +3,10 @@ use byte_utils::*;
 use io::{Read, Seek, SeekFrom};
 use rich_file::*;
 
-pub(crate) struct DataFile(RichFile);
+pub(crate) struct DataFile {
+  pub data_gen: DataGen,
+  pub file: RichFile,
+}
 pub(crate) struct DataEntry {
     pub data_gen: DataGen,
     pub offset: Offset,
@@ -14,16 +17,27 @@ pub(crate) struct DataEntry {
 }
 
 impl DataFile {
-    pub fn of(rich_file: RichFile) -> DataFile {
-        DataFile(rich_file)
+    pub const FILE_NAME_PREFIX: &'static str = "data";
+
+    pub fn of(dir_name: &str, data_gen: DataGen) -> DataFile {
+        let file = RichFile::open_file(
+            dir_name,
+            format!("{}_{}", DataFile::FILE_NAME_PREFIX, data_gen),
+            FileOption::Append,
+        ).expect("failed to open data file");
+
+        DataFile {
+          data_gen,
+          file,
+        }
     }
     /*
     Data Layout:
     [key length][value length][ key data  ][value data ]\0
     <--4 byte--><--4 byte----><--key_len--><-value_len->
     */
-    pub fn read_entry(&self, data_gen: DataGen, offset: Offset) -> Option<DataEntry> {
-        let mut data = &self.0.underlying;
+    pub fn read_entry(&self, offset: Offset) -> Option<DataEntry> {
+        let mut data = &self.file.underlying;
         data.seek(SeekFrom::Start(offset)).unwrap();
         let mut key_len: [u8; 4] = [0; 4];
         let res = data.read_exact(&mut key_len);
@@ -69,12 +83,18 @@ impl DataFile {
         }
 
         Some(DataEntry {
-            data_gen,
+            data_gen: self.data_gen,
             offset,
             key_len,
             value_len,
             key: ByteUtils::as_string(&key_data),
             value: ByteUtils::as_string(&value_data),
         })
+    }
+
+    pub fn clear(dir: &str, data_gen: DataGen) -> io::Result<()> {
+        let tmp = Self::of(dir, data_gen);
+        std::fs::remove_file(tmp.file.path())?;
+        Ok(())
     }
 }

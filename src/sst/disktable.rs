@@ -38,9 +38,6 @@ pub(crate) mod default {
     }
 
     impl FileDisktable {
-        const INDEX_DELIMITER: &'static str = "\t";
-        const DATA_FILE_NAME_PREFIX: &'static str = "data";
-
         pub fn new(dir_name: String) -> Result<impl Disktable, io::Error> {
             std::fs::create_dir_all(&dir_name).expect("failed to create directory");
             let data_gen = Self::get_latest_data_gen(&dir_name)?;
@@ -58,7 +55,7 @@ pub(crate) mod default {
                 let mut list = dir.fold(vec![], |mut acc, entry| {
                     let file_name = entry.unwrap().file_name();
                     let file_name = file_name.to_string_lossy();
-                    match Regex::new(&format!("{}_(?P<gen>\\d+)", Self::DATA_FILE_NAME_PREFIX))
+                    match Regex::new(&format!("{}_(?P<gen>\\d+)", DataFile::FILE_NAME_PREFIX))
                         .unwrap()
                         .captures(&file_name)
                     {
@@ -78,13 +75,8 @@ pub(crate) mod default {
             Self::get_data_gens(dir_name).map(|list| *list.last().unwrap_or(&0))
         }
 
-        fn data_file(&self, gen: DataGen) -> RichFile {
-            RichFile::open_file(
-                &self.dir_name,
-                format!("{}_{}", Self::DATA_FILE_NAME_PREFIX, gen),
-                FileOption::Append,
-            )
-            .expect("failed to open data file")
+        fn data_file(&self, gen: DataGen) -> DataFile {
+          DataFile::of(&self.dir_name, gen)
         }
 
         fn index_file(&self, data_gen: DataGen) -> IndexFile {
@@ -92,7 +84,7 @@ pub(crate) mod default {
         }
 
         fn fetch(&self, data_gen: DataGen, offset: Offset) -> Option<(String, String)> {
-            let entry = DataFile::of(self.data_file(data_gen)).read_entry(data_gen, offset);
+            let entry = self.data_file(data_gen).read_entry(offset);
             entry.map(|entry| (entry.key, entry.value))
         }
     }
@@ -161,7 +153,7 @@ pub(crate) mod default {
             data_writer.flush().expect("failed to write data");
             let new_index_file = IndexFile::of(next_data_gen, &self.dir_name);
             new_index_file.create_index(&new_index)?;
-            std::fs::rename(new_data_file.path(), self.data_file(next_data_gen).path())?;
+            std::fs::rename(new_data_file.path(), self.data_file(next_data_gen).file.path())?;
 
             println!("entries: {:?}", entries);
             self.data_gen = next_data_gen;
@@ -171,7 +163,7 @@ pub(crate) mod default {
 
         fn clear(&mut self) -> Result<(), io::Error> {
             (0..=self.data_gen).for_each(|gen| {
-                std::fs::remove_file(self.data_file(gen).path()).expect("failed to remove file");
+                DataFile::clear(&self.dir_name, gen);
                 IndexFile::clear(gen, &self.dir_name);
             });
             self.data_gen = 0;
