@@ -13,10 +13,10 @@ pub struct SSTable {
     disktable: Box<dyn disktable::Disktable>,
 }
 impl SSTable {
-    pub fn new(dir_name: impl Into<String>, mem_max_entry: usize) -> SSTable {
+    pub fn new(dir_name: &str, mem_max_entry: usize) -> SSTable {
         SSTable {
             memtable: Box::new(memtable::default::HashMemtable::new(mem_max_entry)),
-            disktable: Box::new(disktable::default::FileDisktable::new(dir_name.into()).unwrap()),
+            disktable: Box::new(disktable::default::FileDisktable::new(dir_name).unwrap()),
         }
     }
     pub fn get(&self, key: impl Into<String>) -> Option<String> {

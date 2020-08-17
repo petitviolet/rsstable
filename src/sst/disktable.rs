@@ -7,7 +7,7 @@ use super::memtable::MemtableEntries;
 use std::{collections::BTreeMap, io};
 
 pub trait Disktable {
-    fn find(&self, key: &String) -> Option<String>;
+    fn find(&self, key: &str) -> Option<String>;
     fn flush(&mut self, memtable_entries: MemtableEntries<String, String>)
         -> Result<(), io::Error>;
     fn clear(&mut self) -> Result<(), io::Error>;
@@ -38,19 +38,19 @@ pub(crate) mod default {
     }
 
     impl FileDisktable {
-        pub fn new(dir_name: String) -> Result<impl Disktable, io::Error> {
+        pub fn new(dir_name: &str) -> Result<impl Disktable, io::Error> {
             std::fs::create_dir_all(&dir_name).expect("failed to create directory");
-            let data_gen = Self::get_latest_data_gen(&dir_name)?;
+            let data_gen = Self::get_latest_data_gen(dir_name)?;
             let flushing = None;
 
             Ok(Self {
                 data_gen,
-                dir_name,
+                dir_name: dir_name.to_string(),
                 flushing,
             })
         }
 
-        fn get_data_gens(dir_name: &String) -> io::Result<Vec<DataGen>> {
+        fn get_data_gens(dir_name: &str) -> io::Result<Vec<DataGen>> {
             std::fs::read_dir(dir_name).map(|dir| {
                 let mut list = dir.fold(vec![], |mut acc, entry| {
                     let file_name = entry.unwrap().file_name();
@@ -71,7 +71,7 @@ pub(crate) mod default {
             })
         }
 
-        fn get_latest_data_gen(dir_name: &String) -> io::Result<DataGen> {
+        fn get_latest_data_gen(dir_name: &str) -> io::Result<DataGen> {
             Self::get_data_gens(dir_name).map(|list| *list.last().unwrap_or(&0))
         }
 
@@ -90,7 +90,7 @@ pub(crate) mod default {
     }
 
     impl Disktable for FileDisktable {
-        fn find(&self, key: &String) -> Option<String> {
+        fn find(&self, key: &str) -> Option<String> {
             let find_from_disk = || {
                 (0..=self.data_gen).rev().find_map(|data_gen| {
                     self.index_file(data_gen)
@@ -103,7 +103,7 @@ pub(crate) mod default {
                 })
             };
             match self.flushing.as_ref() {
-                Some(mem_entries) => match mem_entries.get(key) {
+                Some(mem_entries) => match mem_entries.get(&key.to_string()) {
                     memtable::GetResult::Found(value) => Some(value.to_string()),
                     memtable::GetResult::Deleted => None,
                     memtable::GetResult::NotFound => find_from_disk(),

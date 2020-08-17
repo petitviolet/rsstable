@@ -59,7 +59,7 @@ impl IndexFile {
     /* index file layout
     [key len][key][offset in data file]\0...
     */
-    pub fn find_index(&self, key: &String) -> Option<IndexEntry> {
+    pub fn find_index(&self, key: &str) -> Option<IndexEntry> {
         let start_offset = self.find_index_seek_from(key);
         let mut index = &self.file.underlying;
         index.seek(SeekFrom::Start(start_offset)).unwrap();
@@ -113,7 +113,7 @@ impl IndexFile {
     [key N]\t[offset in this file]
     [key2N]\t[offset in this file]
     */
-    fn find_index_seek_from(&self, key: &String) -> Offset {
+    fn find_index_seek_from(&self, key: &str) -> Offset {
         let mut lines = BufReader::new(&self.skip_index_file.underlying).lines();
         let mut last_offset = 0;
         lines
@@ -123,7 +123,7 @@ impl IndexFile {
                 let res: Vec<_> = line.split(Self::INDEX_DELIMITER).collect();
                 let _key = res[0].to_string();
                 let offset = res[1].parse::<Offset>().unwrap();
-                if *key <= _key {
+                if key <= _key.as_ref() {
                     Some(offset)
                 } else {
                     last_offset = offset;
