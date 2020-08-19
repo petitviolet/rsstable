@@ -4,6 +4,7 @@
 use std::io;
 mod disktable;
 mod memtable;
+mod rich_file;
 
 pub struct SSTable {
     // Sorted *String* Table :)

@@ -1,8 +1,8 @@
 use super::*;
 use byte_utils::*;
 use io::{BufRead, BufWriter, Read, Seek, SeekFrom, Write};
-use rich_file::*;
 use std::{fmt::Debug, io::BufReader};
+use crate::sst::rich_file::*;
 
 pub(crate) struct IndexFile {
     data_gen: DataGen,

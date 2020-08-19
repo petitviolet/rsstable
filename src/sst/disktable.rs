@@ -1,7 +1,6 @@
 mod byte_utils;
 mod data_file;
 mod index_file;
-mod rich_file;
 
 use super::memtable::MemtableEntries;
 use std::{collections::BTreeMap, io};
@@ -16,7 +15,7 @@ type DataGen = i32; // data generation
 type Offset = u64;
 
 pub(crate) mod default {
-    use super::{byte_utils::*, data_file::*, index_file::*, rich_file::*, *};
+    use super::{byte_utils::*, data_file::*, index_file::*, *};
     use crate::sst::memtable::{self, MemtableEntries};
     use io::{BufWriter, Write};
     use regex::Regex;
