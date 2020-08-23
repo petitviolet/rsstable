@@ -1,7 +1,7 @@
 use super::*;
+use crate::sst::rich_file::*;
 use byte_utils::*;
 use io::{BufWriter, Read, Seek, SeekFrom, Write};
-use crate::sst::rich_file::*;
 
 pub(crate) struct DataFile {
     pub data_gen: DataGen,

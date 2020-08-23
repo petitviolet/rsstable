@@ -14,7 +14,10 @@ pub struct SSTable {
 impl SSTable {
     pub fn new(dir_name: &str, mem_max_entry: usize) -> SSTable {
         SSTable {
-            memtable: Box::new(memtable::default::HashMemtable::new(mem_max_entry)),
+            memtable: Box::new(memtable::default::HashMemtable::new(
+                dir_name,
+                mem_max_entry,
+            )),
             disktable: Box::new(disktable::default::FileDisktable::new(dir_name).unwrap()),
         }
     }
