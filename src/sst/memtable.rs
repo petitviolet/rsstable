@@ -1,3 +1,4 @@
+mod wal;
 use std::{
     collections::{BTreeMap, BTreeSet},
     hash::Hash,
@@ -15,6 +16,7 @@ pub trait Memtable {
     ) -> MemtableOnFlush<Self::Key, Self::Value>;
     fn delete(&mut self, key: Self::Key) -> ();
     fn clear(&mut self) -> ();
+    fn restore(&mut self) -> io::Result<()>;
 }
 pub enum GetResult<T> {
     Found(T),
@@ -29,7 +31,7 @@ pub struct MemtableEntries<Key, Value> {
     pub tombstones: Box<BTreeSet<Key>>,
 }
 
-impl<K: Hash + Eq + Ord, V> MemtableEntries<K, V> {
+impl<K: Hash + Eq + Ord + From<String>, V: From<String>> MemtableEntries<K, V> {
     pub fn get(&self, key: &K) -> GetResult<&V> {
         if self.tombstones.get(key).is_none() {
             self.entries
@@ -60,18 +62,34 @@ pub(crate) mod default {
         collections::{BTreeMap, BTreeSet},
         hash::Hash,
     };
+    use wal::WriteAheadLog;
 
     pub struct HashMemtable<K, V> {
         max_entry: usize,
         underlying: BTreeMap<K, V>,
         tombstone: BTreeSet<K>,
+        wal: WriteAheadLog,
     }
-    impl<K: Hash + Eq + Ord, V> HashMemtable<K, V> {
-        pub fn new(max_entry: usize) -> HashMemtable<K, V> {
+    impl<K: Hash + Eq + Ord + From<String>, V: From<String>> HashMemtable<K, V> {
+        pub fn new(dir_name: &str, max_entry: usize) -> HashMemtable<K, V> {
+            let mut underlying = BTreeMap::new();
+            let mut tombstone = BTreeSet::new();
+            WriteAheadLog::restore(dir_name)
+                .expect("failed to load WAL")
+                .for_each(|entry| match entry {
+                    wal::Entry::Inserted { key, value } => {
+                        underlying.insert(From::from(key), From::from(value));
+                    }
+                    wal::Entry::Deleted { key } => {
+                        tombstone.insert(From::from(key));
+                    }
+                });
+            let wal = WriteAheadLog::new(dir_name);
             HashMemtable {
                 max_entry,
-                underlying: BTreeMap::new(),
-                tombstone: BTreeSet::new(),
+                wal,
+                underlying,
+                tombstone,
             }
         }
 
@@ -100,8 +118,11 @@ pub(crate) mod default {
                 tombstones: Box::new(deleted),
             }
         }
+        fn on_flush_callback(&mut self) -> () {}
     }
-    impl<K: Hash + Eq + Ord, V> Memtable for HashMemtable<K, V> {
+    impl<K: Hash + Eq + Ord + ToString + From<String>, V: ToString + From<String>> Memtable
+        for HashMemtable<K, V>
+    {
         type Key = K;
         type Value = V;
 
@@ -124,6 +145,9 @@ pub(crate) mod default {
             value: Self::Value,
         ) -> MemtableOnFlush<Self::Key, Self::Value> {
             self.tombstone.remove(&key);
+            self.wal
+                .insert((&key.to_string(), &value.to_string()))
+                .expect("failed to write WAL");
             self.underlying.insert(key, value);
             if self.underlying.len() >= self.max_entry {
                 MemtableOnFlush {
@@ -133,14 +157,20 @@ pub(crate) mod default {
                 MemtableOnFlush { flushed: None }
             }
         }
-
         fn delete(&mut self, key: Self::Key) -> () {
+            self.wal
+                .delete(&key.to_string())
+                .expect("failed to write WAL");
             self.underlying.remove(&key);
             self.tombstone.insert(key);
         }
         fn clear(&mut self) -> () {
+            self.wal.clear().expect("failed to clear WAL");
             self.underlying.clear();
             self.tombstone.clear();
+        }
+        fn restore(&mut self) -> io::Result<()> {
+            todo!()
         }
     }
 }
