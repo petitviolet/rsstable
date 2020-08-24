@@ -113,6 +113,7 @@ pub(crate) mod default {
         fn flush(&mut self) -> MemtableEntries<K, V> {
             let contents = std::mem::replace(&mut self.underlying, BTreeMap::new());
             let deleted = std::mem::replace(&mut self.tombstone, BTreeSet::new());
+            self.wal.clear().expect("failed to clear WAL");
             MemtableEntries {
                 entries: Box::new(contents),
                 tombstones: Box::new(deleted),
