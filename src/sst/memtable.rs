@@ -118,8 +118,8 @@ pub(crate) mod default {
                 tombstones: Box::new(deleted),
             }
         }
-        fn on_flush_callback(&mut self) -> () {}
     }
+
     impl<K: Hash + Eq + Ord + ToString + From<String>, V: ToString + From<String>> Memtable
         for HashMemtable<K, V>
     {
