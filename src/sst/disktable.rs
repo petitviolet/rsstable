@@ -5,7 +5,7 @@ mod index_file;
 use super::memtable::MemtableEntries;
 use std::{collections::BTreeMap, io};
 
-pub trait Disktable {
+pub(crate) trait Disktable {
     fn find(&self, key: &str) -> Option<String>;
     fn flush(&mut self, memtable_entries: MemtableEntries<String, String>)
         -> Result<(), io::Error>;
@@ -21,7 +21,7 @@ pub(crate) mod default {
     use regex::Regex;
     use std::{collections::BTreeMap, io};
 
-    pub struct FileDisktable {
+    pub(crate) struct FileDisktable {
         dir_name: String,
         data_gen: DataGen,
         flushing: Option<MemtableEntries<String, String>>,

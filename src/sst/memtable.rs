@@ -5,7 +5,7 @@ use std::{
     io,
 };
 
-pub trait Memtable {
+pub(crate) trait Memtable {
     type Key;
     type Value;
     fn get(&self, key: &Self::Key) -> GetResult<&Self::Value>;
@@ -18,15 +18,15 @@ pub trait Memtable {
     fn clear(&mut self) -> ();
     fn restore(&mut self) -> io::Result<()>;
 }
-pub enum GetResult<T> {
+pub(crate) enum GetResult<T> {
     Found(T),
     Deleted,
     NotFound,
 }
-pub struct MemtableOnFlush<Key, Value> {
+pub(crate) struct MemtableOnFlush<Key, Value> {
     flushed: Option<MemtableEntries<Key, Value>>,
 }
-pub struct MemtableEntries<Key, Value> {
+pub(crate) struct MemtableEntries<Key, Value> {
     pub entries: Box<BTreeMap<Key, Value>>,
     pub tombstones: Box<BTreeSet<Key>>,
 }
