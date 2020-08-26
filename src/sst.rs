@@ -11,10 +11,11 @@ pub struct SSTable {
     memtable: Box<dyn memtable::Memtable<Key = String, Value = String>>,
     disktable: Box<dyn disktable::Disktable>,
 }
+
 impl SSTable {
     pub fn new(dir_name: &str, mem_max_entry: usize) -> SSTable {
         SSTable {
-            memtable: Box::new(memtable::default::HashMemtable::new(
+            memtable: Box::new(memtable::default::BTreeMemtable::new(
                 dir_name,
                 mem_max_entry,
             )),

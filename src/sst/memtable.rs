@@ -64,14 +64,14 @@ pub(crate) mod default {
     };
     use wal::WriteAheadLog;
 
-    pub struct HashMemtable<K, V> {
+    pub struct BTreeMemtable<K, V> {
         max_entry: usize,
         underlying: BTreeMap<K, V>,
         tombstone: BTreeSet<K>,
         wal: WriteAheadLog,
     }
-    impl<K: Hash + Eq + Ord + From<String>, V: From<String>> HashMemtable<K, V> {
-        pub fn new(dir_name: &str, max_entry: usize) -> HashMemtable<K, V> {
+    impl<K: Hash + Eq + Ord + From<String>, V: From<String>> BTreeMemtable<K, V> {
+        pub fn new(dir_name: &str, max_entry: usize) -> BTreeMemtable<K, V> {
             let mut underlying = BTreeMap::new();
             let mut tombstone = BTreeSet::new();
             WriteAheadLog::restore(dir_name)
@@ -85,7 +85,7 @@ pub(crate) mod default {
                     }
                 });
             let wal = WriteAheadLog::new(dir_name);
-            HashMemtable {
+            BTreeMemtable {
                 max_entry,
                 wal,
                 underlying,
@@ -122,7 +122,7 @@ pub(crate) mod default {
     }
 
     impl<K: Hash + Eq + Ord + ToString + From<String>, V: ToString + From<String>> Memtable
-        for HashMemtable<K, V>
+        for BTreeMemtable<K, V>
     {
         type Key = K;
         type Value = V;
