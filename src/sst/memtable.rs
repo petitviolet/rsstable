@@ -72,8 +72,8 @@ pub(crate) mod default {
     }
     impl<K: Hash + Eq + Ord + From<String>, V: From<String>> BTreeMemtable<K, V> {
         pub fn new(dir_name: &str, max_entry: usize) -> BTreeMemtable<K, V> {
-            let wal = WriteAheadLog::new(dir_name);
-            let (underlying, tombstone) = Self::load_wal(dir_name);
+            let (underlying, tombstone) = Self::restore_from_wal(dir_name);
+            let wal = WriteAheadLog::create(dir_name);
             BTreeMemtable {
                 max_entry,
                 wal,
@@ -82,20 +82,24 @@ pub(crate) mod default {
             }
         }
 
-        fn load_wal(dir_name: &str) -> (BTreeMap<K, V>, BTreeSet<K>) {
-          let mut underlying = BTreeMap::new();
-          let mut tombstone = BTreeSet::new();
-          WriteAheadLog::restore(dir_name)
-              .expect("failed to load WAL")
-              .for_each(|entry| match entry {
-                  wal::Entry::Inserted { key, value } => {
-                      underlying.insert(From::from(key), From::from(value));
-                  }
-                  wal::Entry::Deleted { key } => {
-                      tombstone.insert(From::from(key));
-                  }
-              });
-          (underlying, tombstone)
+        fn restore_from_wal(dir_name: &str) -> (BTreeMap<K, V>, BTreeSet<K>) {
+            let mut underlying = BTreeMap::new();
+            let mut tombstone = BTreeSet::new();
+            match WriteAheadLog::restore(dir_name) {
+                Some(restored) => restored.for_each(|entry| match entry {
+                    Ok(wal::Entry::Inserted { key, value }) => {
+                        underlying.insert(From::from(key), From::from(value));
+                    }
+                    Ok(wal::Entry::Deleted { key }) => {
+                        tombstone.insert(From::from(key));
+                    }
+                    Err(message) => {
+                        println!("failed to restore a line. {}", message);
+                    }
+                }),
+                None => (),
+            };
+            (underlying, tombstone)
         }
 
         fn is_deleted(&self, key: &K) -> bool {

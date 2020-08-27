@@ -22,7 +22,7 @@ impl FileOption {
         match self {
             FileOption::New => option.read(true).write(true).truncate(true).create(true),
             FileOption::Append => option.read(true).append(true).truncate(false).create(true),
-            FileOption::ReadOnly => option.read(true).create(true),
+            FileOption::ReadOnly => option.read(true),
         }
         .open(path)
     }
@@ -32,7 +32,7 @@ impl RichFile {
         dir_name: impl Into<String>,
         file_name: impl Into<String>,
         option: FileOption,
-    ) -> Result<RichFile, io::Error> {
+    ) -> io::Result<RichFile> {
         let dir_name = dir_name.into();
         let dir = Path::new(&dir_name);
         let file_name_s: String = file_name.into();
