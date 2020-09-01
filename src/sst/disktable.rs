@@ -107,10 +107,6 @@ pub(crate) mod default {
             memtable_entries: MemtableEntries<String, String>,
         ) -> Result<(), io::Error> {
             self.flushing = Some(memtable_entries);
-            let MemtableEntries {
-                entries,
-                tombstones, // TODO: persist records marked as deleted
-            } = self.flushing.as_ref().unwrap();
 
             let next_data_gen = self.data_gen + 1;
             let new_data_file = DataFile::of(&self.dir_name, next_data_gen);
@@ -118,9 +114,9 @@ pub(crate) mod default {
             let new_index_file = IndexFile::of(next_data_gen, &self.dir_name);
             new_index_file.create_index(&new_index)?;
 
-            println!("entries: {:?}", entries);
             self.data_gen = next_data_gen;
             self.flushing = None;
+            println!("Disktable#flush has completed. next_data_gen: {}", next_data_gen);
             Ok(())
         }
 

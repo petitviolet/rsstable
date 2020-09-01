@@ -40,8 +40,8 @@ impl WriteAheadLog {
         }
     }
     fn writer(dir_name: &str) -> BufWriter<File> {
-      let file = Self::open_file(dir_name, FileOption::New).expect("failed to open WAL file");
-      BufWriter::new(file.underlying)
+        let file = Self::open_file(dir_name, FileOption::New).expect("failed to open WAL file");
+        BufWriter::new(file.underlying)
     }
     fn open_file(dir_name: &str, option: FileOption) -> io::Result<RichFile> {
         RichFile::open_file(dir_name, Self::FILE_NAME, option)
@@ -68,8 +68,8 @@ impl WriteAheadLog {
     }
 
     pub fn clear(&mut self) -> io::Result<()> {
-      self.writer = Self::writer(&self.dir_name);
-      Ok(())
+        self.writer = Self::writer(&self.dir_name);
+        Ok(())
     }
 
     pub fn restore(dir_name: &str) -> Option<WalRestore> {
