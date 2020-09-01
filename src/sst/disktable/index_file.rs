@@ -124,7 +124,7 @@ impl IndexFile {
                 let _key = res[0].to_string();
                 let offset = res[1].parse::<Offset>().unwrap();
                 if key <= _key.as_ref() {
-                    Some(offset)
+                    Some(last_offset)
                 } else {
                     last_offset = offset;
                     None
