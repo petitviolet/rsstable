@@ -109,9 +109,10 @@ impl IndexFile {
     }
 
     /* skip file layout:
-    [key 0]\t[offset in this file]
-    [key N]\t[offset in this file]
-    [key2N]\t[offset in this file]
+    [key 0]\t[offset in index file]
+    [key N]\t[offset in index file]
+    [key2N]\t[offset in index file]
+    ...
     */
     fn find_index_seek_from(&self, key: &str) -> Offset {
         let mut lines = BufReader::new(&self.skip_index_file.underlying).lines();
