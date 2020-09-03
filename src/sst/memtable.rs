@@ -1,4 +1,5 @@
 mod wal;
+use log;
 use std::{
     collections::{BTreeMap, BTreeSet},
     hash::Hash,
@@ -94,7 +95,7 @@ pub(crate) mod default {
                         tombstone.insert(From::from(key));
                     }
                     Err(message) => {
-                        println!("failed to restore a line. {}", message);
+                        log::error!("failed to restore a line. {}", message);
                     }
                 }),
                 None => (),

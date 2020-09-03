@@ -3,6 +3,7 @@ mod data_file;
 mod index_file;
 
 use super::memtable::MemtableEntries;
+use log;
 use std::{collections::BTreeMap, io};
 
 pub(crate) trait Disktable {
@@ -116,7 +117,10 @@ pub(crate) mod default {
 
             self.data_gen = next_data_gen;
             self.flushing = None;
-            println!("Disktable#flush has completed. next_data_gen: {}", next_data_gen);
+            log::debug!(
+                "Disktable#flush has completed. next_data_gen: {}",
+                next_data_gen
+            );
             Ok(())
         }
 

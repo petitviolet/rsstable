@@ -2,6 +2,7 @@
 //! Basically, this is a Key-Value store on top of local file storage.
 
 use std::io;
+use log;
 mod disktable;
 mod memtable;
 mod rich_file;
@@ -38,7 +39,7 @@ impl SSTable {
         let key = key.into();
         let value = value.into();
         self.memtable.set(key, value).on_flush(|mem| {
-            println!(
+            log::debug!(
                 "flush! memtable: {:?}, tombstones: {:?}",
                 mem.entries, mem.tombstones
             );
@@ -57,6 +58,7 @@ impl SSTable {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use crate::sst::SSTable;
     #[test]
