@@ -15,6 +15,7 @@ pub struct SSTable {
 
 impl SSTable {
     pub fn new(dir_name: &str, mem_max_entry: usize) -> SSTable {
+        std::fs::create_dir_all(dir_name).expect(&format!("failed to create directory {}", dir_name));
         SSTable {
             memtable: Box::new(memtable::default::BTreeMemtable::new(
                 dir_name,
@@ -105,4 +106,4 @@ mod tests {
         assert_eq!(sst.get(key(4)), Some(value(4)));
         assert_eq!(sst.get(key(5)), Some(value(5)));
     }
-}
+} 
