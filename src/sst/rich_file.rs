@@ -23,8 +23,12 @@ impl FileOption {
             FileOption::New => option.read(true).write(true).truncate(true).create(true),
             FileOption::Append => option.read(true).append(true).truncate(false).create(true),
             FileOption::ReadOnly => {
-              OpenOptions::new().create_new(true).write(true).open(path)?;
-              option.read(true)
+                OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(false)
+                    .open(path)?;
+                option.read(true)
             }
         }
         .open(path)

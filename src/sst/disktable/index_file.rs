@@ -1,8 +1,8 @@
 use super::*;
-use log;
 use crate::sst::rich_file::*;
 use byte_utils::*;
 use io::{BufRead, BufWriter, Read, Seek, SeekFrom, Write};
+use log;
 use std::{fmt::Debug, io::BufReader};
 
 pub(crate) struct IndexFile {
@@ -68,7 +68,7 @@ impl IndexFile {
             let mut key_len: [u8; 4] = [0; 4];
             let res = index.read_exact(&mut key_len);
             if res.is_err() {
-                // log::debug!("failed to read. err: {:?}", res);
+                // log::trace!("failed to read. err: {:?}", res);
                 return None;
             }
 
@@ -79,7 +79,7 @@ impl IndexFile {
             let mut key_data = vec![0u8; key_len];
             let res = index.read_exact(&mut key_data);
             if res.is_err() {
-                // log::debug!("failed to read. err: {:?}", res);
+                // log::trace!("failed to read. err: {:?}", res);
                 return None;
             } else if key_data.len() != key_len {
                 panic!(
@@ -105,7 +105,7 @@ impl IndexFile {
                 offset,
             });
         }
-        log::debug!("cannot find index for key({})", key);
+        log::warn!("cannot find index for key({})", key);
         None
     }
 

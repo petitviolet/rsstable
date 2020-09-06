@@ -95,7 +95,7 @@ pub(crate) mod default {
                         tombstone.insert(From::from(key));
                     }
                     Err(message) => {
-                        log::error!("failed to restore a line. {}", message);
+                        panic!("failed to restore a line. {}", message);
                     }
                 }),
                 None => (),
@@ -138,6 +138,7 @@ pub(crate) mod default {
         type Value = V;
 
         fn get(&self, key: &Self::Key) -> GetResult<&Self::Value> {
+            log::trace!("why memtable#find was called!");
             self.with_check_tombstone(
                 key,
                 || GetResult::Deleted,
@@ -160,7 +161,8 @@ pub(crate) mod default {
                 .insert((&key.to_string(), &value.to_string()))
                 .expect("failed to write WAL");
             self.underlying.insert(key, value);
-            if self.underlying.len() >= self.max_entry {
+            if self.underlying.len() > self.max_entry {
+                log::trace!("flush!");
                 MemtableOnFlush {
                     flushed: Some(self.flush()),
                 }

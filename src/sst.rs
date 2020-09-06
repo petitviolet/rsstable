@@ -1,8 +1,8 @@
 //! SSTable(Sorted String Table) in Rust
 //! Basically, this is a Key-Value store on top of local file storage.
 
-use std::io;
 use log;
+use std::io;
 mod disktable;
 mod memtable;
 mod rich_file;
@@ -15,7 +15,8 @@ pub struct SSTable {
 
 impl SSTable {
     pub fn new(dir_name: &str, mem_max_entry: usize) -> SSTable {
-        std::fs::create_dir_all(dir_name).expect(&format!("failed to create directory {}", dir_name));
+        std::fs::create_dir_all(dir_name)
+            .expect(&format!("failed to create directory {}", dir_name));
         SSTable {
             memtable: Box::new(memtable::default::BTreeMemtable::new(
                 dir_name,
@@ -40,9 +41,10 @@ impl SSTable {
         let key = key.into();
         let value = value.into();
         self.memtable.set(key, value).on_flush(|mem| {
-            log::debug!(
+            log::trace!(
                 "flush! memtable: {:?}, tombstones: {:?}",
-                mem.entries, mem.tombstones
+                mem.entries,
+                mem.tombstones
             );
             self.disktable.flush(mem)
         })
@@ -106,4 +108,4 @@ mod tests {
         assert_eq!(sst.get(key(4)), Some(value(4)));
         assert_eq!(sst.get(key(5)), Some(value(5)));
     }
-} 
+}

@@ -82,6 +82,7 @@ pub(crate) mod default {
 
     impl Disktable for FileDisktable {
         fn find(&self, key: &str) -> Option<String> {
+            log::trace!("why disktable#find was called!");
             let find_from_disk = || {
                 (0..=self.data_gen).rev().find_map(|data_gen| {
                     self.index_file(data_gen)
@@ -117,7 +118,7 @@ pub(crate) mod default {
 
             self.data_gen = next_data_gen;
             self.flushing = None;
-            log::debug!(
+            log::trace!(
                 "Disktable#flush has completed. next_data_gen: {}",
                 next_data_gen
             );
