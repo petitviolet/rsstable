@@ -1,17 +1,21 @@
 mod sst;
 use sst::SSTable;
+mod logger;
 
 fn main() {
+    logger::Logger::init(log::Level::Info);
+
+    log::error!("start");
     let mut sst = SSTable::new("./tmp", 3);
     // sst.clear().expect("failed to clear");
     (1..10).for_each(|i| {
-        println!("i: {} =====", i);
+        log::info!("i: {} =====", i);
         let key = || format!("key-{}", i);
         let value = || format!("value-{}", i);
-        println!("get({}): {:?}", i, sst.get(key()));
-        println!("insert: {:?}", sst.insert(key(), value()));
-        println!("get({}): {:?}", i, sst.get(key()));
-        println!("get({}): {:?}", i + 4, sst.get(format!("key-{}", i + 4)));
+        log::info!("get({}): {:?}", i, sst.get(key()));
+        log::info!("insert: {:?}", sst.insert(key(), value()));
+        log::info!("get({}): {:?}", i, sst.get(key()));
+        log::info!("get({}): {:?}", i + 4, sst.get(format!("key-{}", i + 4)));
     });
     ()
 }

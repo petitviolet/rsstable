@@ -82,7 +82,6 @@ pub(crate) mod default {
 
     impl Disktable for FileDisktable {
         fn find(&self, key: &str) -> Option<String> {
-            log::trace!("why disktable#find was called!");
             let find_from_disk = || {
                 (0..=self.data_gen).rev().find_map(|data_gen| {
                     self.index_file(data_gen)

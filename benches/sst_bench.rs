@@ -3,9 +3,10 @@ extern crate criterion;
 
 use criterion::Criterion;
 use rsstable::sst::SSTable;
+use simple_logger;
 fn test_sstable_performance(c: &mut Criterion) {
     let mut sst = SSTable::new("./test_bench", 1);
-    rsstable::logger::Logger::init(log::Level::Debug);
+    simple_logger::SimpleLogger::new().with_level(log::LevelFilter::Info).init().unwrap();
     sst.clear();
     // prepare
     let disk_key = "1";

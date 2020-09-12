@@ -138,7 +138,7 @@ pub(crate) mod default {
         type Value = V;
 
         fn get(&self, key: &Self::Key) -> GetResult<&Self::Value> {
-            log::trace!("why memtable#find was called!");
+            // log::trace!("why memtable#find was called!");
             self.with_check_tombstone(
                 key,
                 || GetResult::Deleted,
