@@ -25,10 +25,10 @@ impl SSTable {
             disktable: Box::new(disktable::default::FileDisktable::new(dir_name).unwrap()),
         }
     }
-    pub fn get(&self, key: impl Into<String>) -> Option<String> {
+    pub fn get(&self, key: impl Into<String>) -> Option<&String> {
         let key = key.into();
         match self.memtable.get(&key) {
-            memtable::GetResult::Found(value) => Some(value.to_string()),
+            memtable::GetResult::Found(value) => Some(value),
             memtable::GetResult::Deleted => None,
             memtable::GetResult::NotFound => self.disktable.find(&key),
         }

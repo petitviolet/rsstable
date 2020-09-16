@@ -7,7 +7,7 @@ use log;
 use std::{collections::BTreeMap, io};
 
 pub(crate) trait Disktable {
-    fn find(&self, key: &str) -> Option<String>;
+    fn find(&self, key: &str) -> Option<&String>;
     fn flush(&mut self, memtable_entries: MemtableEntries<String, String>)
         -> Result<(), io::Error>;
     fn clear(&mut self) -> Result<(), io::Error>;
@@ -78,28 +78,33 @@ pub(crate) mod default {
             IndexFile::of(data_gen, &self.dir_name)
         }
 
-        fn fetch(&self, data_gen: DataGen, offset: Offset) -> Option<(String, String)> {
-            let entry = self.data_file(data_gen).read_entry(offset);
-            entry.map(|entry| (entry.key, entry.value))
+        fn fetch(&self, data_gen: DataGen, offset: Offset) -> Option<(&String, &String)> {
+            let entry = self.with_data_file(data_gen, |data_file| data_file.read_entry(offset));
+            entry.map(|entry|  {
+              unsafe {
+                let &DataEntry { ref key, ref value, .. } = entry.as_ref();
+                (key, value)
+              }
+            })
         }
     }
 
     impl Disktable for FileDisktable {
-        fn find(&self, key: &str) -> Option<String> {
+        fn find(&self, key: &str) -> Option<&String> {
             let find_from_disk = || {
                 (0..=self.data_gen).rev().find_map(|data_gen| {
                     self.index_file(data_gen)
                         .find_index(key)
                         .and_then(|index_entry| {
                             self.fetch(index_entry.data_gen, index_entry.offset)
-                                .filter(|(_key, _)| _key == key)
+                                .filter(|(_key, _)| _key == &key)
                                 .map(|(_, value)| value)
                         })
                 })
             };
             match self.flushing.as_ref() {
                 Some(mem_entries) => match mem_entries.get(&key.to_string()) {
-                    memtable::GetResult::Found(value) => Some(value.to_string()),
+                    memtable::GetResult::Found(value) => Some(value),
                     memtable::GetResult::Deleted => None,
                     memtable::GetResult::NotFound => find_from_disk(),
                 },
