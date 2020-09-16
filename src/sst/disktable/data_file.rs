@@ -1,8 +1,7 @@
 use super::*;
 use crate::sst::rich_file::*;
 use byte_utils::*;
-use io::{BufWriter, Read, Seek, SeekFrom, Write, BufReader};
-use std::mem;
+use io::{BufWriter, Read, Seek, SeekFrom, Write};
 
 pub(crate) struct DataFile {
     pub data_gen: DataGen,
@@ -15,21 +14,6 @@ pub(crate) struct DataEntry {
     pub value_len: usize,
     pub key: String,
     pub value: String,
-}
-
-impl DataEntry {
-  pub unsafe fn as_ref<'a>(&self) -> &'a DataEntry {
-    &*self.as_ptr()
-  }
-
-  unsafe fn as_ptr(&self) -> *mut DataEntry {
-    if mem::size_of::<DataEntry>() == 0 {
-        // Just return an arbitrary ZST pointer which is properly aligned
-        mem::align_of::<DataEntry>() as *mut DataEntry
-    } else {
-        self.as_ptr().sub(1)
-    }
-  }
 }
 
 impl DataFile {
@@ -51,7 +35,7 @@ impl DataFile {
     <--4 byte--><--4 byte----><--key_len--><-value_len->
     */
     pub fn read_entry(&self, offset: Offset) -> Option<DataEntry> {
-        let mut data = BufReader::new(&self.file.underlying);
+        let mut data = &self.file.underlying;
         data.seek(SeekFrom::Start(offset)).unwrap();
         let mut key_len: [u8; 4] = [0; 4];
         let res = data.read_exact(&mut key_len);
