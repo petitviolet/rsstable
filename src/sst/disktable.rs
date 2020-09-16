@@ -25,6 +25,7 @@ pub(crate) mod default {
         dir_name: String,
         data_gen: DataGen,
         flushing: Option<MemtableEntries<String, String>>,
+        data_files: HashMap<DataGen, DataFile>,
     }
 
     impl FileDisktable {
@@ -37,6 +38,7 @@ pub(crate) mod default {
                 data_gen,
                 dir_name: dir_name.to_string(),
                 flushing,
+                data_files: HashMap::new(),
             })
         }
 
@@ -65,8 +67,11 @@ pub(crate) mod default {
             Self::get_data_gens(dir_name).map(|list| *list.last().unwrap_or(&0))
         }
 
-        fn data_file(&self, gen: DataGen) -> DataFile {
-            DataFile::of(&self.dir_name, gen)
+        fn with_data_file<T>(&self, gen: DataGen, f: impl Fn(&DataFile) -> T) -> T {
+          match self.data_files.get(&gen) {
+            Some(found) => f(found),
+            None => f(&DataFile::of(&self.dir_name, gen))
+          }
         }
 
         fn index_file(&self, data_gen: DataGen) -> IndexFile {
