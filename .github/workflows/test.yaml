@@ -31,9 +31,5 @@ jobs:
           override: true
 
       - uses: actions-rs/cargo@v1.0.1
-
-      - name: format check
-        run: cargo fmt -- --check
-
-      - name: test
-        run: cargo test
+        with:
+          command: test
