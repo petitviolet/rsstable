@@ -1,0 +1,22 @@
+name: Rust Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: icepuma/rust-action@master
+
+      - name: format check
+        run: cargo fmt -- --check
+
+      - name: test
+        run: cargo test
