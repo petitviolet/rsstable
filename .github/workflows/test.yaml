@@ -13,7 +13,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
-      - uses: icepuma/rust-action@master
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - uses: actions-rs/cargo@v1.0.1
 
       - name: format check
         run: cargo fmt -- --check
