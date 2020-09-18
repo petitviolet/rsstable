@@ -79,7 +79,7 @@ pub(crate) mod default {
         }
 
         fn fetch(&self, data_gen: DataGen, offset: Offset) -> Option<(String, String)> {
-            let entry = self.data_file(data_gen).read_entry(offset);
+            let entry = self.with_data_file(data_gen, |df| df.read_entry(offset));
             entry.map(|entry| (entry.key, entry.value))
         }
     }
