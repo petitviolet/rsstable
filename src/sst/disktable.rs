@@ -19,7 +19,7 @@ pub(crate) mod default {
     use super::{data_file::*, index_file::*, *};
     use crate::sst::memtable::{self, MemtableEntries};
     use regex::Regex;
-    use std::io;
+    use std::{collections::HashMap, io};
 
     pub(crate) struct FileDisktable {
         dir_name: String,
