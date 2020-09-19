@@ -10,6 +10,7 @@ pub(crate) struct DataFile {
 pub(crate) struct DataEntry {
     pub data_gen: DataGen,
     pub offset: Offset,
+    pub size: usize,
     pub key_len: usize,
     pub value_len: usize,
     pub key: String,
@@ -37,52 +38,25 @@ impl DataFile {
     pub fn read_entry(&self, offset: Offset) -> Option<DataEntry> {
         let mut data = &self.file.underlying;
         data.seek(SeekFrom::Start(offset)).unwrap();
-        let mut key_len: [u8; 4] = [0; 4];
-        let res = data.read_exact(&mut key_len);
+        let mut size: [u8; 4] = [0; 4];
+        let res = data.read_exact(&mut size);
         if res.is_err() {
             return None;
         }
-
-        let mut value_len: [u8; 4] = [0; 4];
-        let res = data.read_exact(&mut value_len);
+        let size = ByteUtils::as_usize(&size);
+        let mut bytes = vec![0u8; size];
+        let res = data.read_exact(&mut bytes);
         if res.is_err() {
             return None;
         }
-
-        let key_len = ByteUtils::as_usize(key_len);
-        if key_len == 0 {
-            return None;
-        }
-        let mut key_data = vec![0u8; key_len];
-        let res = data.read_exact(&mut key_data);
-        if res.is_err() {
-            return None;
-        } else if key_data.len() != key_len {
-            panic!(
-                "invalid key. offset: {}, key_len: {}, key_data: {:?}",
-                offset, key_len, key_data
-            );
-        }
-
-        let value_len = ByteUtils::as_usize(value_len);
-        if value_len == 0 {
-            return None;
-        }
-        // let mut value_data = Vec::with_capacity(value_len); // doesn't work somehow
-        let mut value_data = vec![0u8; value_len];
-        let res = data.read_exact(&mut value_data);
-        if res.is_err() {
-            return None;
-        } else if value_data.len() != value_len {
-            panic!(
-                "invalid value. offset: {}, lvalue_len: {}, value_data: {:?}",
-                offset, value_len, value_data
-            );
-        }
-
+        let key_len = ByteUtils::as_usize(bytes.get(4..8).unwrap());
+        let value_len = ByteUtils::as_usize(bytes.get(8..12).unwrap());
+        let key_data = bytes.get(12..(12 + key_len)).unwrap();
+        let value_data = bytes.get((12 + key_len)..(12 + key_len + value_len)).unwrap();
         Some(DataEntry {
             data_gen: self.data_gen,
             offset,
+            size,
             key_len,
             value_len,
             key: ByteUtils::as_string(&key_data),
@@ -107,24 +81,19 @@ impl DataFile {
         entries.iter().for_each(|(key, value)| {
             let key_bytes = key.as_bytes();
             let value_bytes = value.as_bytes();
-            let written_bytes = data_writer
-                .write(&ByteUtils::from_usize(key_bytes.len()))
-                .and_then(|size1| {
-                    data_writer
-                        .write(&ByteUtils::from_usize(value_bytes.len()))
-                        .and_then(|size2| {
-                            data_writer.write(key_bytes).and_then(|size3| {
-                                data_writer.write(value_bytes).and_then(|size4| {
-                                    data_writer
-                                        .write(b"\0")
-                                        .map(|size5| size1 + size2 + size3 + size4 + size5)
-                                })
-                            })
-                        })
-                })
+            let size = 4 + key_bytes.len() + 4 + value_bytes.len();
+            let bytes: Vec<u8> =[
+              &ByteUtils::from_usize(size), 
+              &ByteUtils::from_usize(key_bytes.len()),
+              &ByteUtils::from_usize(value_bytes.len()),
+              key_bytes,
+              value_bytes,
+              b"\0"
+            ].concat();
+            data_writer.write(&bytes)
                 .expect("failed to to write bytes into BufWriter");
             new_index.insert(key, offset);
-            offset += written_bytes as u64;
+            offset += (size + 1) as u64;
         });
         data_writer.flush().expect("failed to write data");
         std::fs::rename(new_data_file.path(), self.file.path())?;

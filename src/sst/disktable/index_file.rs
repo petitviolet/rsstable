@@ -71,7 +71,7 @@ impl IndexFile {
                 return None;
             }
 
-            let key_len = ByteUtils::as_usize(key_len);
+            let key_len = ByteUtils::as_usize(&key_len);
             if key_len == 0 {
                 return None;
             }
@@ -97,7 +97,7 @@ impl IndexFile {
             if res.is_err() {
                 return None;
             }
-            let offset = ByteUtils::as_u64(offset);
+            let offset = ByteUtils::as_u64(&offset);
             return Some(IndexEntry {
                 key: _key,
                 data_gen: self.data_gen,
