@@ -2,7 +2,6 @@ use super::*;
 use crate::sst::rich_file::*;
 use byte_utils::*;
 use io::{BufRead, BufWriter, Read, Seek, SeekFrom, Write};
-use log;
 use std::{fmt::Debug, io::BufReader};
 
 pub(crate) struct IndexFile {
@@ -89,7 +88,7 @@ impl IndexFile {
             }
             let _key = ByteUtils::as_string(&key_data);
             if _key != *key {
-                index.read_exact(&mut [0; 9]); // offset + \0
+                index.read_exact(&mut [0; 9]).unwrap(); // offset + \0
                 continue;
             }
 
@@ -105,8 +104,6 @@ impl IndexFile {
                 offset,
             });
         }
-        log::warn!("cannot find index for key({})", key);
-        None
     }
 
     /* skip file layout:

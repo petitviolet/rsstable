@@ -57,13 +57,13 @@ impl WriteAheadLog {
             Self::DELIMITER,
             value
         );
-        self.writer.write(str.as_bytes());
+        self.writer.write(str.as_bytes()).unwrap();
         self.writer.flush()
     }
 
     pub fn delete(&mut self, key: &str) -> io::Result<()> {
         let str = format!("{}{}{}\n", Self::TAG_DELETED, Self::DELIMITER, key);
-        self.writer.write(str.as_bytes());
+        self.writer.write(str.as_bytes()).unwrap();
         self.writer.flush()
     }
 

@@ -1,11 +1,7 @@
 mod sst;
 use sst::SSTable;
-mod logger;
 
 fn main() {
-    logger::Logger::init(log::Level::Info);
-
-    log::error!("start");
     let mut sst = SSTable::new("./tmp", 3);
     // sst.clear().expect("failed to clear");
     (1..10).for_each(|i| {
