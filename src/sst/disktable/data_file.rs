@@ -2,6 +2,7 @@ use super::*;
 use crate::sst::rich_file::*;
 use byte_utils::*;
 use io::{BufWriter, Read, Seek, SeekFrom, Write};
+use std::slice::SliceIndex;
 
 pub(crate) struct DataFile {
     pub data_gen: DataGen,
@@ -44,15 +45,22 @@ impl DataFile {
             return None;
         }
         let size = ByteUtils::as_usize(&size);
-        let mut bytes = vec![0u8; size];
+        let mut bytes = vec![0u8; size - 4];
         let res = data.read_exact(&mut bytes);
         if res.is_err() {
             return None;
         }
-        let key_len = ByteUtils::as_usize(bytes.get(4..8).unwrap());
-        let value_len = ByteUtils::as_usize(bytes.get(8..12).unwrap());
-        let key_data = bytes.get(12..(12 + key_len)).unwrap();
-        let value_data = bytes.get((12 + key_len)..(12 + key_len + value_len)).unwrap();
+        let expected = |prefix, range| {
+          format!("[{}]failed to read bytes({:?}) for range({:?})", prefix, bytes, range)
+        };
+        let key_len_bytes = bytes.get(0..4).unwrap_or_else(|| panic!(expected("key_len", 0..4)));
+        let key_len = ByteUtils::as_usize(key_len_bytes);
+        let value_len_bytes = bytes.get(4..8).unwrap_or_else(|| panic!(expected("value_len", 4..8)));
+        let value_len = ByteUtils::as_usize(value_len_bytes);
+        let key_data = bytes.get(8..(8 + key_len)).unwrap_or_else(|| panic!(expected("key_data", 8..(8 + key_len))));
+        let value_data = bytes.get((8 + key_len)..(8 + key_len + value_len)).unwrap_or_else(
+          || panic!(expected("value_data", (8 + key_len)..(8 + key_len + value_len)))
+        );
         Some(DataEntry {
             data_gen: self.data_gen,
             offset,
@@ -81,7 +89,7 @@ impl DataFile {
         entries.iter().for_each(|(key, value)| {
             let key_bytes = key.as_bytes();
             let value_bytes = value.as_bytes();
-            let size = 4 + key_bytes.len() + 4 + value_bytes.len();
+            let size = 4 + 4 + key_bytes.len() + 4 + value_bytes.len();
             let bytes: Vec<u8> =[
               &ByteUtils::from_usize(size), 
               &ByteUtils::from_usize(key_bytes.len()),
@@ -90,6 +98,9 @@ impl DataFile {
               value_bytes,
               b"\0"
             ].concat();
+            if (size + 1) != bytes.len() {
+              panic!(format!("size is invalid. size: {}, bytes.len(): {}", size, bytes.len()));
+            }
             data_writer.write(&bytes)
                 .expect("failed to to write bytes into BufWriter");
             new_index.insert(key, offset);
