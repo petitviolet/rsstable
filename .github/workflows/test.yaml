@@ -32,4 +32,7 @@ jobs:
 
       - uses: actions-rs/cargo@v1.0.1
         with:
-          command: test
+          command: check
+
+      - name: bench
+        run: cargo bench
